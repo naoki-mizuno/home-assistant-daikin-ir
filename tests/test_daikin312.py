@@ -105,6 +105,17 @@ def test_capture_bit_map(label, field, expected):
     assert getattr(_capture(label), field) == expected
 
 
+def test_sensor_swing_reproduces_the_remote():
+    """Sensor airflow puts both directions on auto plus the flag in raw[36]."""
+    capture = _capture("swing sensor auto on")
+    mine = PROTOCOL.pack(dataclasses.replace(BASE, swing_v="auto", swing_h="auto"))
+    assert (mine.SwingV, mine.SwingH, mine.SensorSwing) == (
+        capture.SwingV,
+        capture.SwingH,
+        capture.SensorSwing,
+    )
+
+
 def test_comfort_offset_round_trip():
     """Comfort auto stores a signed half-degree offset where the temperature goes."""
     frame = _capture("comfort auto offset +5.0")
@@ -129,10 +140,11 @@ def test_comfort_offset_encoding(offset):
 # ── apply() semantics ────────────────────────────────────────────────────────
 
 
-def test_cool_mode_floors_temperature():
-    state = PROTOCOL.apply(BASE, {"mode": "cool", "temp": 12.0})
-    assert state.temp == d.MIN_COOL_TEMP
-    assert PROTOCOL.apply(BASE, {"mode": "heat", "temp": 12.0}).temp == 12.0
+def test_temperature_is_clamped_per_mode():
+    """cool 18.0-32.0C, heat 14.0-30.0C (manual p.13)."""
+    assert PROTOCOL.apply(BASE, {"mode": "cool", "temp": 12.0}).temp == 18.0
+    assert PROTOCOL.apply(BASE, {"mode": "heat", "temp": 12.0}).temp == 14.0
+    assert PROTOCOL.apply(BASE, {"mode": "heat", "temp": 32.0}).temp == 30.0
 
 
 def test_humidity_snaps_to_supported_steps():
@@ -140,8 +152,8 @@ def test_humidity_snaps_to_supported_steps():
         BASE, {"mode": "dry", "humidity_mode": "manual", "humidity": 53}
     )
     assert state.humidity == 55
-    # Modes without humidification force the feature off.
-    assert PROTOCOL.apply(state, {"mode": "cool"}).humidity_mode == "off"
+    # heat mode has no humidity setting on this model, so the feature turns itself off.
+    assert PROTOCOL.apply(state, {"mode": "heat"}).humidity_mode == "off"
 
 
 def test_powerful_and_quiet_are_exclusive():
@@ -160,9 +172,9 @@ def test_powerful_and_quiet_are_exclusive():
         ({"temp": 27.0}, d.A_TEMP),
         ({"mode": "auto", "auto_offset": 1.0}, d.A_AUTO),
         ({"fan": "level_3"}, d.A_FAN),
-        ({"swing_v": "lowest"}, d.A_SWING_V),
+        ({"swing_v": "position_6"}, d.A_SWING_V),
         ({"swing_v": "circulate"}, d.A_CIRCULATION),
-        ({"swing_h": "sensor_auto"}, d.A_SWING_SENSOR),
+        ({"swing_v": "auto", "swing_h": "auto"}, d.A_SWING_SENSOR),
         ({"swing_h": "left"}, d.A_SWING_H),
         ({"powerful": True}, d.A_POWERFUL),
         ({"streamer": True}, d.A_FAN_ONLY),

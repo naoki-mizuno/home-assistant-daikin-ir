@@ -15,6 +15,13 @@ capture wins and the field carries a note. Confirmed by capture:
 * raw[8] bit4: 高温風 (heat high), matching the header's HeatHigh comment.
 * raw[26] in 快適自動: 0xC0 | 5-bit two's-complement half-degree offset, and
   raw[27] = 0x80. Not in the header at all.
+
+Still unidentified: raw[14] bits 1 and 6, which the remote sets in patterns the
+captures do not explain. Codes generated without them work, so they are left
+clear.
+
+Ranges and option lists come from the S40TTAXP-W manual (3P420060-1C) where it
+is narrower than the header, since the header covers every Daikin312 model.
 """
 
 from __future__ import annotations
@@ -72,22 +79,25 @@ FANS: dict[str, int] = {
     "level_4": 6,
     "level_5": 7,
 }
+# 風向上下: 1～6段階目 plus 自動 / スイング / ゆらぎ / サーキュレーション風向.
 SWING_V: dict[str, int] = {
     "off": 0x0,
-    "sensor_auto": 0xE,
+    "auto": 0xE,
     "swing": 0xF,
-    "highest": 0x1,
-    "high": 0x2,
-    "upper_middle": 0x3,
-    "lower_middle": 0x4,
-    "low": 0x5,
-    "lowest": 0x6,
+    "position_1": 0x1,
+    "position_2": 0x2,
+    "position_3": 0x3,
+    "position_4": 0x4,
+    "position_5": 0x5,
+    "position_6": 0x6,
     "breeze": 0xC,
     "circulate": 0xD,
 }
+# 風向左右: which of the eight fixed positions the remote offers depends on its
+# 部屋形状設定, so all of them are exposed.
 SWING_H: dict[str, int] = {
     "off": 0x00,
-    "sensor_auto": 0x1E,
+    "auto": 0x1E,
     "swing": 0x1F,
     "wide": 0x01,
     "left_max": 0x08,
@@ -102,19 +112,27 @@ BEEPS: dict[str, int] = {"normal": 0, "quiet": 1, "loud": 2, "off": 3}
 LIGHTS: dict[str, int] = {"bright": 1, "dim": 2, "off": 3}
 EYE: dict[str, int] = {"off": 0, "1h": 1, "3h": 2}
 
-# Humidity percentages the unit accepts, per mode. 0xFF (auto) is offered as a
-# humidity *mode* rather than a percentage.
+# Humidity percentages the unit accepts, per mode (manual p.13). Lowering the
+# humidity in 冷房 is what puts the unit into 除湿冷房. The header also lists
+# 40/45/50 for 暖房, which belongs to the humidifying (うるる) models — this one
+# says 「湿度は変えられません」 in heat, so it is not offered.
 HUMIDITY_STEPS: dict[str, tuple[int, ...]] = {
-    MODE_HEAT: (40, 45, 50),
+    MODE_COOL: (50, 55, 60),
     MODE_DRY: (50, 55, 60),
 }
-HUMIDITY_AUTO = 0xFF
+HUMIDITY_AUTO = 0xFF  # 連続: keep dehumidifying
+HUMIDITY_MODES = ("off", "continuous", "manual")
 HUMIDITY_OFF = 0x00
 # In 快適自動 the remote parks a non-percentage value here.
 HUMIDITY_COMFORT = 0x80
 
-MIN_TEMP = 10.0
-MIN_COOL_TEMP = 18.0
+# Settable temperature per mode (manual p.13). 除湿 and ストリーマ空気清浄 have no
+# setting of their own; the byte still has to carry something sane.
+TEMP_RANGES: dict[str, tuple[float, float]] = {
+    MODE_COOL: (18.0, 32.0),
+    MODE_HEAT: (14.0, 30.0),
+}
+DEFAULT_TEMP_RANGE = (18.0, 32.0)
 MAX_TEMP = 32.0
 TEMP_STEP = 0.5
 # Largest 快適自動 offset seen from the remote (0xD6 == -5.0 °C).
@@ -290,9 +308,9 @@ class Daikin312State:
     temp: float = 26.0
     auto_offset: float = 0.0  # 快適自動 only
     fan: str = "auto"
-    swing_v: str = "sensor_auto"
-    swing_h: str = "sensor_auto"
-    humidity_mode: str = "off"  # off | auto | manual
+    swing_v: str = "auto"
+    swing_h: str = "auto"
+    humidity_mode: str = "off"  # 切 | 連続 | 指定%
     humidity: int = 50
     heat_high: bool = False  # 高温風
     powerful: bool = False  # パワフル
@@ -331,7 +349,7 @@ class Daikin312Protocol(Protocol):
         fan_modes=tuple(FANS),
         swing_modes=tuple(SWING_V),
         swing_horizontal_modes=tuple(SWING_H),
-        humidity_modes=("off", "auto", "manual"),
+        humidity_modes=HUMIDITY_MODES,
         temp_step=TEMP_STEP,
     )
 
@@ -350,8 +368,8 @@ class Daikin312Protocol(Protocol):
         Control(
             "humidity_mode",
             SELECT,
-            options=("off", "auto", "manual"),
-            modes=(MODE_HEAT, MODE_DRY),
+            options=HUMIDITY_MODES,
+            modes=tuple(HUMIDITY_STEPS),
             category=None,
             icon="mdi:water-percent",
         ),
@@ -457,13 +475,14 @@ class Daikin312Protocol(Protocol):
     # ── validation ───────────────────────────────────────────────────────────
 
     def temp_range(self, state: Daikin312State) -> tuple[float, float]:
-        if state.mode == MODE_COOL:
-            return MIN_COOL_TEMP, MAX_TEMP
-        return MIN_TEMP, MAX_TEMP
+        return TEMP_RANGES.get(state.mode, DEFAULT_TEMP_RANGE)
 
     def humidity_range(self, state: Daikin312State) -> tuple[int, int]:
-        steps = HUMIDITY_STEPS.get(state.mode)
-        return (steps[0], steps[-1]) if steps else (0, 0)
+        if steps := HUMIDITY_STEPS.get(state.mode):
+            return steps[0], steps[-1]
+        # Humidification is heat/dry only, but the slider still needs bounds.
+        every = sorted({v for s in HUMIDITY_STEPS.values() for v in s})
+        return every[0], every[-1]
 
     def apply(self, state: Daikin312State, changes: dict[str, Any]) -> Daikin312State:
         """Merge changes, clamp them to what the unit accepts, pick the announcement."""
@@ -527,9 +546,9 @@ class Daikin312Protocol(Protocol):
                     return A_HEAT_HIGH
                 return _MODE_ANNOUNCE.get(state.mode)
             if item == -2:  # swing
+                if state.swing_v == "auto" and state.swing_h == "auto":
+                    return A_SWING_SENSOR  # センサー風向
                 value = state.swing_v if key == "swing_v" else state.swing_h
-                if value == "sensor_auto":
-                    return A_SWING_SENSOR
                 if value in ("breeze", "circulate"):
                     return A_CIRCULATION
                 return A_SWING_V if key == "swing_v" else A_SWING_H
@@ -554,7 +573,9 @@ class Daikin312Protocol(Protocol):
         f.Fan = FANS[state.fan]
         f.SwingV = SWING_V[state.swing_v]
         f.SwingH = SWING_H[state.swing_h]
-        f.SensorSwing = state.swing_v == "sensor_auto" or state.swing_h == "sensor_auto"
+        # センサー風向 is one button that puts both directions on 自動, and the
+        # captures only ever show this bit set when both are.
+        f.SensorSwing = state.swing_v == "auto" and state.swing_h == "auto"
 
         if state.mode == MODE_AUTO:
             # 快適自動: the temperature byte carries a signed half-degree offset.
@@ -564,7 +585,7 @@ class Daikin312Protocol(Protocol):
         else:
             humidity = HUMIDITY_OFF
             if state.mode in HUMIDITY_STEPS:
-                if state.humidity_mode == "auto":
+                if state.humidity_mode == "continuous":
                     humidity = HUMIDITY_AUTO
                 elif state.humidity_mode == "manual":
                     humidity = state.humidity
