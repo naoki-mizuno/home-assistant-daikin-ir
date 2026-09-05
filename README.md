@@ -1,3 +1,5 @@
+<img src="brands/icon.png" width="96" align="right" alt="">
+
 # Daikin IR
 
 Home Assistant integration for Daikin air conditioners driven over infrared,
