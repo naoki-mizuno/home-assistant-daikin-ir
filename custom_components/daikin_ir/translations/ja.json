@@ -1,0 +1,150 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "エアコンを追加",
+        "description": "IRブラスタごとに1台ずつ登録します。",
+        "data": {
+          "name": "名前",
+          "protocol": "プロトコル",
+          "codec": "出力フォーマット",
+          "mqtt_topic": "MQTTトピック",
+          "payload_key": "ペイロードキー",
+          "temperature_sensor": "温度センサ",
+          "humidity_sensor": "湿度センサ",
+          "power_sensor": "電源センサ"
+        },
+        "data_description": {
+          "protocol": "お使いのリモコンに合わせて選んでください。",
+          "codec": "IRブラスタが受け付けるコード形式です。",
+          "mqtt_topic": "赤外線コードの送信先。例: zigbee2mqtt/寝室のIRブラスタ/set",
+          "payload_key": "コードを入れるJSONのキー。空欄の場合出力フォーマットの既定値を使います。",
+          "temperature_sensor": "室温として表示します。",
+          "humidity_sensor": "湿度として表示します。",
+          "power_sensor": "リモコン等で停止されたことを検知するために使います。"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "エアコンの設定",
+        "data": {
+          "protocol": "プロトコル",
+          "codec": "出力フォーマット",
+          "mqtt_topic": "MQTTトピック",
+          "payload_key": "ペイロードキー",
+          "temperature_sensor": "温度センサ",
+          "humidity_sensor": "湿度センサ",
+          "power_sensor": "電源センサ"
+        },
+        "data_description": {
+          "mqtt_topic": "赤外線コードの送信先。例: zigbee2mqtt/寝室のIRブラスタ/set",
+          "payload_key": "コードを入れるJSONのキー。空欄の場合出力フォーマットの既定値を使います。",
+          "power_sensor": "リモコン等で停止されたことを検知するために使います。"
+        }
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "daikin_ir": {
+        "state_attributes": {
+          "fan_mode": {
+            "state": {
+              "auto": "自動",
+              "quiet": "しずか",
+              "level_1": "風量1",
+              "level_2": "風量2",
+              "level_3": "風量3",
+              "level_4": "風量4",
+              "level_5": "風量5"
+            }
+          },
+          "swing_mode": {
+            "state": {
+              "off": "切",
+              "auto": "自動",
+              "swing": "スイング",
+              "position_1": "1段階目",
+              "position_2": "2段階目",
+              "position_3": "3段階目",
+              "position_4": "4段階目",
+              "position_5": "5段階目",
+              "position_6": "6段階目",
+              "breeze": "ゆらぎ",
+              "circulate": "サーキュレーション風向"
+            }
+          },
+          "swing_horizontal_mode": {
+            "state": {
+              "off": "切",
+              "auto": "自動",
+              "swing": "スイング",
+              "wide": "ワイド",
+              "left_max": "左端",
+              "left": "左寄り",
+              "middle_left": "左中央",
+              "middle": "正面吹き",
+              "middle_right": "右中央",
+              "right": "右寄り",
+              "right_max": "右端"
+            }
+          }
+        }
+      }
+    },
+    "number": {
+      "auto_offset": { "name": "快適自動の温度補正" }
+    },
+    "select": {
+      "humidity_mode": {
+        "name": "しつど",
+        "state": {
+          "off": "切",
+          "continuous": "連続",
+          "manual": "湿度指定"
+        }
+      },
+      "eye": {
+        "name": "留守エコ",
+        "state": { "off": "切", "1h": "1時間", "3h": "3時間" }
+      },
+      "beep": {
+        "name": "音量",
+        "state": {
+          "normal": "標準",
+          "quiet": "小",
+          "loud": "大",
+          "off": "切"
+        }
+      },
+      "light": {
+        "name": "表示明るさ",
+        "state": { "bright": "明", "dim": "暗", "off": "切" }
+      },
+      "on_timer_mode": {
+        "name": "入タイマーの種類",
+        "state": { "none": "なし", "on_timer": "入タイマー", "sleep": "おやすみ" }
+      }
+    },
+    "switch": {
+      "powerful": { "name": "パワフル" },
+      "heat_high": { "name": "高温風" },
+      "streamer": { "name": "ストリーマ空気清浄" },
+      "filter_clean": { "name": "フィルター掃除" },
+      "mold": { "name": "内部クリーン" },
+      "quiet": { "name": "静か運転" },
+      "purify": { "name": "空気清浄" },
+      "fresh_air": { "name": "換気" },
+      "fresh_air_high": { "name": "換気・強" },
+      "announce_enabled": { "name": "音声応答" },
+      "off_timer_enabled": { "name": "切タイマー" }
+    },
+    "time": {
+      "on_timer": { "name": "入タイマー時刻" },
+      "off_timer": { "name": "切タイマー時刻" }
+    }
+  }
+}
