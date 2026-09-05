@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from custom_components.daikin_ir.lib import daikin312 as d
+from lib import daikin312 as d
 
 FIXTURES = Path(__file__).parent / "fixtures"
 IRREMOTEESP8266 = json.loads((FIXTURES / "daikin312_IRremoteESP8266.json").read_text())

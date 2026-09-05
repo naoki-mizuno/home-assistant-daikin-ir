@@ -7,8 +7,8 @@ import base64
 import json
 from pathlib import Path
 
-from custom_components.daikin_ir.lib import codecs
-from custom_components.daikin_ir.lib.codecs import broadlink_base64, tuya
+from lib import codecs
+from lib.codecs import broadlink_base64, tuya
 
 BASELINE = next(
     c
