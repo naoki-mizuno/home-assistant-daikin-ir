@@ -1,0 +1,13 @@
+{
+  "domain": "daikin_ir",
+  "name": "Daikin IR",
+  "codeowners": ["@naoki-mizuno"],
+  "config_flow": true,
+  "dependencies": ["mqtt"],
+  "documentation": "https://github.com/naoki-mizuno/home-assistant-daikin-ir",
+  "integration_type": "device",
+  "iot_class": "assumed_state",
+  "issue_tracker": "https://github.com/naoki-mizuno/home-assistant-daikin-ir/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
