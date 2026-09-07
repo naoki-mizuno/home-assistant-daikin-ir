@@ -207,9 +207,41 @@ def test_swing_h_alone_does_not_borrow_the_sensor_announce():
     already_auto = dataclasses.replace(BASE, swing_v="auto")
     state = PROTOCOL.apply(already_auto, {"swing_h": "auto"})
     assert state.announce_item == d.A_SWING_H
-    assert (
-        state.announce_item == _capture("swing_h auto (swing_v not auto)").AnnounceItem
-    )
+    capture = _capture("swing_h auto (swing_v not auto)")
+    assert state.announce_item == capture.AnnounceItem
+
+
+def test_fan_only_and_streamer_share_one_announce_id():
+    """0x1A is the fan_only/streamer button, not a phrase. Captures of entering
+    fan_only, turning streamer off, and toggling streamer in cool mode all carry
+    0x1A, so the protocol has no way to ask for one spoken phrase over another."""
+    for label in (
+        "fan_only from off",
+        "streamer off (in fan_only)",
+        "streamer on",
+        "streamer off",
+    ):
+        assert _capture(label).AnnounceItem == d.A_FAN_ONLY, label
+
+    fan_only = dataclasses.replace(BASE, mode="fan_only", streamer=True)
+    assert PROTOCOL.apply(fan_only, {"streamer": False}).announce_item == d.A_FAN_ONLY
+    assert PROTOCOL.apply(BASE, {"mode": "fan_only"}).announce_item == d.A_FAN_ONLY
+
+
+def test_the_unit_picks_the_phrase_from_its_own_state_not_the_frame():
+    """Entering fan_only and switching streamer off announce differently on the
+    unit ("fan only" vs "streamer off"), yet the two captures are the same frame apart
+    from the timestamp the remote stamps into every code. So the spoken phrase
+    is the unit diffing against its own state — nothing this encoder emits can
+    select it, and no announce-priority change can either."""
+    entering = _capture("fan_only from off")
+    streamer_off = _capture("streamer off (in fan_only)")
+    differing = [
+        i for i in range(len(entering.raw)) if entering.raw[i] != streamer_off.raw[i]
+    ]
+    # raw[5] is CurrentTime's low byte; raw[19] is section 1's checksum.
+    assert differing == [5, 19]
+    assert entering.CurrentTime != streamer_off.CurrentTime
 
 
 def test_sensor_airflow_forces_both_vanes_to_auto():

@@ -25,6 +25,16 @@ capture wins and the field carries a note. Confirmed by capture:
 * raw[26] in 快適自動: 0xC0 | 5-bit two's-complement half-degree offset, and
   raw[27] = 0x80. Not in the header at all.
 
+raw[9] (AnnounceItem) names the button pressed, not the phrase spoken. 0x1A
+covers the whole 送風/ストリーマ空清 button: entering 送風, and switching streamer
+either way, in 送風 and in 冷房 alike. The unit picks its wording by diffing the
+frame against the state it is already in — captures of "entering 送風" and
+"streamer off" are the same 39 bytes apart from the timestamp in raw[5], yet
+announce 送風運転 and ストリーマ切 respectively. So which of these a change is
+announced as cannot be chosen from here, and the streamer bit we send along with
+a mode change is what decides it: arriving in 送風 with raw[14] bit4 set is heard
+as the streamer phrase. The remote's own 送風 press from off sends that bit clear.
+
 Still unidentified: raw[14] bits 1 and 6, which the remote sets in patterns the
 captures do not explain (bit 6 rides with every センサー風向 press but not the
 older sensor-auto captures). Codes generated without them work, so they are left
