@@ -325,7 +325,7 @@ class Daikin312State:
     beep: str = "quiet"
     light: str = "bright"
     announce_enabled: bool = True
-    on_timer_mode: str = "off"  # off | on_timer | sleep (they share one slot)
+    on_timer_mode: str = "none"  # none | on_timer | sleep (they share one slot)
     on_timer: int = 0  # minutes past midnight
     off_timer_enabled: bool = False
     off_timer: int = 0  # minutes past midnight
@@ -447,7 +447,7 @@ class Daikin312Protocol(Protocol):
         Control(
             "on_timer_mode",
             SELECT,
-            options=("off", "on_timer", "sleep"),
+            options=("none", "on_timer", "sleep"),
             icon="mdi:timer-outline",
         ),
         Control(
@@ -555,7 +555,7 @@ class Daikin312Protocol(Protocol):
             if item == -3:  # on timer slot
                 if state.on_timer_mode == "sleep":
                     return A_SLEEP
-                return None if state.on_timer_mode == "off" else A_CANCEL
+                return None if state.on_timer_mode == "none" else A_CANCEL
             if item == -4:  # off timer
                 return A_OFF_TIMER if state.off_timer_enabled else A_CANCEL
         return None
@@ -609,7 +609,7 @@ class Daikin312Protocol(Protocol):
         f.Beep = BEEPS[state.beep]
         f.Light = LIGHTS[state.light]
 
-        f.OnTime = state.on_timer if state.on_timer_mode != "off" else UNUSED_TIME
+        f.OnTime = state.on_timer if state.on_timer_mode != "none" else UNUSED_TIME
         f.OnTimer = state.on_timer_mode == "on_timer"
         f.SleepTimer = state.on_timer_mode == "sleep"
         f.OffTime = state.off_timer if state.off_timer_enabled else UNUSED_TIME
