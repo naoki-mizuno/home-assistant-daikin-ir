@@ -115,6 +115,10 @@
         "name": "センサー風向",
         "state": { "off": "切", "area": "エリア送風", "spot": "スポット送風" }
       },
+      "fresh_air": {
+        "name": "換気",
+        "state": { "off": "切", "on": "自動", "high": "強" }
+      },
       "beep": {
         "name": "音量",
         "state": {
@@ -141,8 +145,6 @@
       "mold": { "name": "内部クリーン" },
       "quiet": { "name": "静か運転" },
       "purify": { "name": "空気清浄" },
-      "fresh_air": { "name": "換気" },
-      "fresh_air_high": { "name": "換気・強" },
       "announce_enabled": { "name": "音声応答" },
       "sleep": { "name": "おやすみ" },
       "off_timer_enabled": { "name": "切タイマー" }

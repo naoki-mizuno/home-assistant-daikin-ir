@@ -114,7 +114,6 @@ the English manuals for remotes that speak the same 312-bit protocol:
 | Outdoor unit quiet                  | 静か運転                                 |
 | Air purifying                       | 空気清浄                                 |
 | Fresh air supply ventilation        | 換気                                     |
-| Fresh air supply ventilation, high  | 換気・強                                 |
 | Display brightness — High, Low, Off | 表示明るさ — 明暗切                      |
 | Sound volume                        | 音量                                     |
 | Comfort sleep timer                 | おやすみ                                 |

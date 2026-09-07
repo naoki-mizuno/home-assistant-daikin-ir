@@ -192,6 +192,9 @@ def test_powerful_and_quiet_are_exclusive():
         ({"off_timer_enabled": True, "off_timer": 780}, d.A_OFF_TIMER),
         ({"on_timer_mode": "comfort_sleep", "on_timer": 780}, d.A_CANCEL),
         ({"sleep": True}, d.A_SLEEP),
+        # Ventilation has no known announce id and no button on this model — silent.
+        ({"fresh_air": "on"}, d.A_DISABLE),
+        ({"fresh_air": "high"}, d.A_DISABLE),
         ({}, d.A_DISABLE),
     ],
 )
@@ -262,6 +265,17 @@ def test_manual_vane_pick_cancels_sensor_airflow():
     assert state.sensor_airflow == "off"
     assert state.announce_item == d.A_SWING_V
     assert PROTOCOL.pack(state).SensorAirflow == 0
+
+
+@pytest.mark.parametrize(
+    ("value", "on_bit", "high_bit"),
+    [("off", 0, 0), ("on", 1, 0), ("high", 1, 1)],
+)
+def test_fresh_air_select_drives_both_bits(value, on_bit, high_bit):
+    """off/on/high -> raw[8] bit0 (on) + bit7 (stronger airflow). Unverified: no
+    capture, the S40TTAXP-W has no button for it. high sets both, off clears both."""
+    frame = PROTOCOL.pack(dataclasses.replace(BASE, fresh_air=value))
+    assert (frame.FreshAir, frame.FreshAirHigh) == (on_bit, high_bit)
 
 
 def test_capture_announce_items_match_their_recorded_label():

@@ -134,6 +134,10 @@ SENSOR_AIRFLOW: dict[str, int] = {"off": 0x0, "area": 0x3, "spot": 0x4}
 BEEPS: dict[str, int] = {"normal": 0, "quiet": 1, "loud": 2, "off": 3}
 LIGHTS: dict[str, int] = {"bright": 1, "dim": 2, "off": 3}
 EYE: dict[str, int] = {"off": 0, "1h": 1, "3h": 2}
+# Fresh-air ventilation: off / on / high. On the S40WTRXP-W only; the S40TTAXP-W
+# has no button for it, so the bits are unverified: header FreshAir is raw[8]
+# bit0 (feature on), FreshAirHigh raw[8] bit7 (stronger airflow). high sets both.
+FRESH_AIR = ("off", "on", "high")
 
 # Humidity percentages the unit accepts, per mode (manual p.13). Lowering the
 # humidity in 冷房 is what puts the unit into 除湿冷房. The header also lists
@@ -264,10 +268,10 @@ class Daikin312Raw(RawState):
     CurrentTime   = Field(5, 0, 12)   # clock, minutes past midnight
     Power2        = Field(6, 7)       # inverse of Power
     EyeTimer      = Field(7, 6, 2)    # 留守エコ: 0 off / 1 1hr / 2 3hr
-    FreshAir      = Field(8, 0)       # unverified
+    FreshAir      = Field(8, 0)       # fresh-air ventilation on; unverified
     Mold          = Field(8, 3)       # 内部クリーン
     HeatHigh      = Field(8, 4)       # 高温風
-    FreshAirHigh  = Field(8, 7)       # unverified
+    FreshAirHigh  = Field(8, 7)       # fresh-air ventilation, stronger; unverified
     AnnounceItem  = Field(9, 0, 8)    # A_* announce id
     Light         = Field(12, 0, 2)   # LIGHTS index
     Beep          = Field(12, 2, 2)   # BEEPS index
@@ -347,8 +351,7 @@ class Daikin312State:
     eye: str = "off"  # 留守エコ: off | 1h | 3h
     mold: bool = False  # 内部クリーン; unverified
     purify: bool = False  # unverified
-    fresh_air: bool = False  # unverified
-    fresh_air_high: bool = False  # unverified
+    fresh_air: str = "off"  # ventilation: off | on | high; unverified, S40WTRXP-W only
     beep: str = "quiet"
     light: str = "bright"
     announce_enabled: bool = True
@@ -453,13 +456,9 @@ class Daikin312Protocol(Protocol):
         ),
         Control(
             "fresh_air",
-            SWITCH,
+            SELECT,
+            options=FRESH_AIR,
             icon="mdi:weather-windy",
-        ),
-        Control(
-            "fresh_air_high",
-            SWITCH,
-            icon="mdi:weather-windy-variant",
         ),
         Control(
             "beep",
@@ -659,8 +658,8 @@ class Daikin312Protocol(Protocol):
         f.EyeTimer = EYE[state.eye]
         f.Mold = state.mold
         f.Purify = state.purify
-        f.FreshAir = state.fresh_air
-        f.FreshAirHigh = state.fresh_air_high
+        f.FreshAir = state.fresh_air != "off"
+        f.FreshAirHigh = state.fresh_air == "high"
         f.Beep = BEEPS[state.beep]
         f.Light = LIGHTS[state.light]
 

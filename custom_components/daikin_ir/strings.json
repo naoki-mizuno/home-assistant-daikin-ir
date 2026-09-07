@@ -115,6 +115,10 @@
         "name": "Sensor airflow",
         "state": { "off": "Off", "area": "Area airflow", "spot": "Spot airflow" }
       },
+      "fresh_air": {
+        "name": "Fresh air supply ventilation",
+        "state": { "off": "Off", "on": "On", "high": "High" }
+      },
       "beep": {
         "name": "Sound volume",
         "state": {
@@ -145,10 +149,6 @@
       "mold": { "name": "Mold proof" },
       "quiet": { "name": "Outdoor unit quiet" },
       "purify": { "name": "Air purifying" },
-      "fresh_air": { "name": "Fresh air supply ventilation" },
-      "fresh_air_high": {
-        "name": "Fresh air supply ventilation, high"
-      },
       "announce_enabled": { "name": "Voice response" },
       "sleep": { "name": "Sleep mode" },
       "off_timer_enabled": { "name": "Off timer" }
