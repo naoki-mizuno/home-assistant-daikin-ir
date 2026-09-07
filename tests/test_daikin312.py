@@ -86,6 +86,8 @@ def test_captures_have_valid_checksums():
         ("filter_clean off", "FilterClean", 0),
         ("swing sensor auto on", "SensorSwing", 1),
         ("swing sensor auto off", "SensorSwing", 0),
+        ("sleep on", "Sleep", 1),
+        ("sleep off", "Sleep", 0),
         # Bits IRremoteESP8266's `union Daikin312Protocol` header (ir_Daikin.h)
         # does describe correctly.
         ("powerful on", "Powerful", 1),
@@ -183,7 +185,8 @@ def test_powerful_and_quiet_are_exclusive():
         ({"beep": "loud"}, d.A_BEEP),
         ({"light": "off"}, d.A_LIGHT),
         ({"off_timer_enabled": True, "off_timer": 780}, d.A_OFF_TIMER),
-        ({"on_timer_mode": "sleep", "on_timer": 780}, d.A_SLEEP),
+        ({"on_timer_mode": "comfort_sleep", "on_timer": 780}, d.A_CANCEL),
+        ({"sleep": True}, d.A_SLEEP),
         ({}, d.A_DISABLE),
     ],
 )

@@ -148,6 +148,10 @@ names being similar.
 - 空気清浄 (Air purifying): plain air purification, filters/circulates room air without the
   Streamer discharge. The base version of the same idea.
 
+Also, the "on timer time" is dual-use: on timer and comfort sleep timer.
+Comfort sleep timer is not supported in Japanese models, but is possible for FTXZ-N.
+It is labelled 快適おやすみタイマー in Japanese for the sake of feature-completeness.
+
 ## Credits
 
 - [IRremoteESP8266](https://github.com/crankyoldgit/IRremoteESP8266) — the

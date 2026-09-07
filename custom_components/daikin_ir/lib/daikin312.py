@@ -13,6 +13,9 @@ capture wins and the field carries a note. Confirmed by capture:
 * raw[7] bits6-7: 留守エコ duration: 0=off, 1=1hr, 2=3hr. No separate enable
   bit was ever observed, so this select *is* the feature's on/off.
 * raw[8] bit4: 高温風 (heat high), matching the header's HeatHigh comment.
+* raw[33] bit2: おやすみ (sleep mode), absent from the header. Distinct from
+  raw[36] bit5, the header's unverified international Comfort Sleep Timer,
+  which this JP unit's remote has no button for.
 * raw[26] in 快適自動: 0xC0 | 5-bit two's-complement half-degree offset, and
   raw[27] = 0x80. Not in the header at all.
 
@@ -191,6 +194,7 @@ _ANNOUNCE_PRIORITY: tuple[tuple[str, int], ...] = (
     ("streamer", A_FAN_ONLY),
     ("filter_clean", A_FILTER),
     ("eye", A_EYE),
+    ("sleep", A_SLEEP),
     ("on_timer_mode", -3),
     ("on_timer", -3),
     ("off_timer_enabled", -4),
@@ -262,12 +266,14 @@ class Daikin312Raw(RawState):
     OnTime       = Field(30, 0, 12)  # on-timer time, minutes past midnight
     OffTime      = Field(31, 4, 12)  # off-timer time, minutes past midnight
     Powerful     = Field(33, 0)      # パワフル
+    Sleep        = Field(33, 2)      # おやすみ; confirmed by capture, not in the header
     Quiet        = Field(33, 5)      # 静か運転; unverified
     Announce     = Field(34, 3)      # enable bit, gates AnnounceItem
     Eye          = Field(36, 1)      # unverified
     SensorSwing  = Field(36, 2)      # センサー風向 (header: Econo)
     Purify       = Field(36, 4)      # unverified
-    SleepTimer   = Field(36, 5)      # on_timer_mode == sleep
+    ComfortSleep = Field(36, 5)      # on_timer_mode == comfort_sleep; unverified intl feature,
+                                      # never observed set on this JP unit
     Sum2         = Field(38, 0, 8)   # section 2 checksum
 
     def __init__(self, raw: bytes | bytearray | None = None) -> None:
@@ -325,7 +331,8 @@ class Daikin312State:
     beep: str = "quiet"
     light: str = "bright"
     announce_enabled: bool = True
-    on_timer_mode: str = "none"  # none | on_timer | sleep (they share one slot)
+    sleep: bool = False  # おやすみ; confirmed by capture
+    on_timer_mode: str = "none"  # none | on_timer | comfort_sleep (they share one slot)
     on_timer: int = 0  # minutes past midnight
     off_timer_enabled: bool = False
     off_timer: int = 0  # minutes past midnight
@@ -445,9 +452,14 @@ class Daikin312Protocol(Protocol):
             icon="mdi:bullhorn",
         ),
         Control(
+            "sleep",
+            SWITCH,
+            icon="mdi:sleep",
+        ),
+        Control(
             "on_timer_mode",
             SELECT,
-            options=("none", "on_timer", "sleep"),
+            options=("none", "on_timer", "comfort_sleep"),
             icon="mdi:timer-outline",
         ),
         Control(
@@ -552,9 +564,7 @@ class Daikin312Protocol(Protocol):
                 if value in ("breeze", "circulate"):
                     return A_CIRCULATION
                 return A_SWING_V if key == "swing_v" else A_SWING_H
-            if item == -3:  # on timer slot
-                if state.on_timer_mode == "sleep":
-                    return A_SLEEP
+            if item == -3:  # on timer slot: on_timer and comfort_sleep both unverified
                 return None if state.on_timer_mode == "none" else A_CANCEL
             if item == -4:  # off timer
                 return A_OFF_TIMER if state.off_timer_enabled else A_CANCEL
@@ -611,7 +621,8 @@ class Daikin312Protocol(Protocol):
 
         f.OnTime = state.on_timer if state.on_timer_mode != "none" else UNUSED_TIME
         f.OnTimer = state.on_timer_mode == "on_timer"
-        f.SleepTimer = state.on_timer_mode == "sleep"
+        f.ComfortSleep = state.on_timer_mode == "comfort_sleep"
+        f.Sleep = state.sleep
         f.OffTime = state.off_timer if state.off_timer_enabled else UNUSED_TIME
         f.OffTimer = state.off_timer_enabled
 

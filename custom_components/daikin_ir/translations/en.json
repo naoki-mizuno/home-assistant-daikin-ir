@@ -129,7 +129,7 @@
         "state": {
           "none": "None",
           "on_timer": "On timer",
-          "sleep": "Comfort sleep timer"
+          "comfort_sleep": "Comfort sleep timer"
         }
       }
     },
@@ -146,6 +146,7 @@
         "name": "Fresh air supply ventilation, high"
       },
       "announce_enabled": { "name": "Voice response" },
+      "sleep": { "name": "Sleep mode" },
       "off_timer_enabled": { "name": "Off timer" }
     },
     "time": {

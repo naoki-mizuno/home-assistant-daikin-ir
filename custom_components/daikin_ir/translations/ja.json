@@ -126,7 +126,7 @@
       },
       "on_timer_mode": {
         "name": "入タイマーの種類",
-        "state": { "none": "なし", "on_timer": "入タイマー", "sleep": "おやすみ" }
+        "state": { "none": "なし", "on_timer": "入タイマー", "comfort_sleep": "快適おやすみタイマー" }
       }
     },
     "switch": {
@@ -140,6 +140,7 @@
       "fresh_air": { "name": "換気" },
       "fresh_air_high": { "name": "換気・強" },
       "announce_enabled": { "name": "音声応答" },
+      "sleep": { "name": "おやすみ" },
       "off_timer_enabled": { "name": "切タイマー" }
     },
     "time": {
