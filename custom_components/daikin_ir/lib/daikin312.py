@@ -8,12 +8,14 @@ capture wins and the field carries a note. Confirmed by capture:
 
 * raw[14] bit4: ストリーマ空清 (the header calls this `Clean`/AirCleanMode).
 * raw[14] bit7: フィルター掃除, absent from the header; announces as Filter.
-* raw[36] bits 0-2: センサー風向 mode — 0 切 / 0b011 エリア送風 / 0b100 スポット
-  送風. The header calls bit2 `Econo`; captures of the センサー風向 button
-  announcing "エリアに設定されました" (bits 0-1 set) vs "スポット" (bit2 set)
-  show this is a 3-state select, not one flag. Both non-off modes also force
-  SwingV=自動 + SwingH=自動, and the button announces A_SWING_SENSOR (0x15) in
-  every direction, cancel included.
+* raw[36] bits 0-2: センサー風向 mode — 0 off / 0b011 area / 0b100 spot
+  The header calls bit2 `Econo`; captures of the "sensor auto" button
+  (bits 0-1 set) vs "spot" (bit2 set) show this is a 3-state select,
+  not one flag. Both area/spot also force SwingV=auto + SwingH=auto.
+  The header's `Econo`/`Eye`/`EyeAuto` bits (36:2/1/3) sit right where this
+  select lives, which reads like the header is wrong about bit2 for this
+  remote, not that a real Econo flag hides nearby. Since ECONO and QUIET are
+  International-only feature, help is needed to expose these features.
 * raw[36] bit7: set in every capture ever taken, in every mode, never cleared.
   Treated as a constant the encoder need not reproduce (codes without it work).
 * raw[7] bits6-7: 留守エコ duration: 0=off, 1=1hr, 2=3hr. No separate enable
@@ -26,10 +28,10 @@ capture wins and the field carries a note. Confirmed by capture:
 * raw[26] in 快適自動: 0xC0 | 5-bit two's-complement half-degree offset, and
   raw[27] = 0x80. Not in the header at all.
 
-raw[9] (AnnounceItem) names the button pressed, not the phrase spoken. 0x1A
-covers the whole 送風/ストリーマ空清 button: entering 送風, and switching streamer
-either way, in 送風 and in 冷房 alike. The unit picks its wording by diffing the
-frame against the state it is already in — captures of "entering 送風" and
+raw[9] (AnnounceItem) names the button pressed. 0x1A covers the whole
+送風/ストリーマ空清 button: entering 送風, and switching streamer either way,
+in 送風 and in 冷房 alike. The unit picks its wording by diffing the frame
+against the state it is already in — captures of "entering 送風" and
 "streamer off" are the same 39 bytes apart from the timestamp in raw[5], yet
 announce 送風運転 and ストリーマ切 respectively. So which of these a change is
 announced as cannot be chosen from here, and the streamer bit we send along with
@@ -43,6 +45,8 @@ clear.
 
 Ranges and option lists come from the S40TTAXP-W manual (3P420060-1C) where it
 is narrower than the header, since the header covers every Daikin312 model.
+
+TODO: make this docstring easier to read (especially for non-Japanese speakers).
 """
 
 from __future__ import annotations
