@@ -560,6 +560,12 @@ class Daikin312Protocol(Protocol):
         """Merge changes, clamp them to what the unit accepts, pick the announcement."""
         new = dataclasses.replace(state, **changes)
         changed = {k for k, v in changes.items() if getattr(state, k, None) != v}
+        if "mode" in changes and changes.get("power"):
+            # The state keeps its mode while the unit is off, so switching on
+            # into the mode it was last left in diffs to a power change alone
+            # and the mode never reaches the announcement rules below. Count
+            # it as changed: the mode was asked for, whatever it was before.
+            changed = changed | {"mode"}
 
         low, high = self.temp_range(new)
         temp = min(high, max(low, round(new.temp / TEMP_STEP) * TEMP_STEP))

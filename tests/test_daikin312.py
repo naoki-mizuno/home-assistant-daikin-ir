@@ -232,8 +232,17 @@ def test_switching_on_into_a_mode_announces_the_mode():
     off = dataclasses.replace(BASE, power=False)
     state = PROTOCOL.apply(off, {"power": True, "mode": "dry"})
     assert state.announce_item == d.A_DRY
+
+    # Switching off leaves the mode behind, so the next dry is not a change of
+    # mode -- but it is still the mode button, and still announced as one.
+    parked = dataclasses.replace(off, mode="dry")
+    on = PROTOCOL.apply(parked, {"power": True, "mode": "dry"})
+    assert on.announce_item == d.A_DRY
+
     off_again = PROTOCOL.apply(BASE, {"power": False, "mode": "dry"})
     assert off_again.announce_item == d.A_POWER
+    # A bare turn-on names no mode, so it stays a power announcement.
+    assert PROTOCOL.apply(parked, {"power": True}).announce_item == d.A_POWER
 
 
 def test_powerful_and_quiet_are_exclusive():
