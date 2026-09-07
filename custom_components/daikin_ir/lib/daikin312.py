@@ -292,7 +292,7 @@ class Daikin312Raw(RawState):
     OffTime       = Field(31, 4, 12)  # off-timer time, minutes past midnight
     Powerful      = Field(33, 0)      # パワフル
     Sleep         = Field(33, 2)      # おやすみ; confirmed by capture, not in the header
-    Quiet         = Field(33, 5)      # 静か運転; unverified
+    Quiet         = Field(33, 5)      # unverified (makes outdoor unit quiet; intl only feature)
     Announce      = Field(34, 3)      # enable bit, gates AnnounceItem
     SensorAirflow = Field(36, 0, 3)  # センサー風向: 0 切 / 3 エリア / 4 スポット (header: bit2 Econo)
     Purify        = Field(36, 4)      # unverified
@@ -345,7 +345,7 @@ class Daikin312State:
     humidity: int = 50
     heat_high: bool = False  # 高温風
     powerful: bool = False  # パワフル
-    quiet: bool = False  # 静か運転; unverified
+    quiet: bool = False  # 室外ユニット静音; unverified, see README
     streamer: bool = False  # ストリーマ空清
     filter_clean: bool = False  # フィルター掃除
     eye: str = "off"  # 留守エコ: off | 1h | 3h

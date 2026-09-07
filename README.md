@@ -152,6 +152,12 @@ Also, the "on timer time" is dual-use: on timer and comfort sleep timer.
 Comfort sleep timer is not supported in Japanese models, but is possible for FTXZ-N.
 It is labelled 快適おやすみタイマー in Japanese for the sake of feature-completeness.
 
+Similarly, the `quiet` switch (raw[33] bit5) has no button or menu path on any
+Japanese-market remote I checked (S40WTRXP-W, S40TTAXP-W). FTXZ-N's manual has
+a matching feature, OUTDOOR UNIT QUIET (lowers outdoor unit noise), triggered
+by an ECONO/QUIET button that JP remotes don't have. Labelled 室外ユニット静音
+here for feature-completeness; state unconfirmed by capture on a JP unit.
+
 ## Credits
 
 - [IRremoteESP8266](https://github.com/crankyoldgit/IRremoteESP8266) — the
