@@ -148,21 +148,18 @@ names being similar.
 - 空気清浄 (Air purifying): plain air purification, filters/circulates room air without the
   Streamer discharge. The base version of the same idea.
 
-Also, the "on timer time" is dual-use: on timer and comfort sleep timer.
-Comfort sleep timer is not supported in Japanese models, but is possible for FTXZ-N.
-It is labelled 快適おやすみタイマー in Japanese for the sake of feature-completeness.
+### Features not present in Japanese models
 
-Similarly, the `quiet` switch (raw[33] bit5) has no button or menu path on any
-Japanese-market remote I checked (S40WTRXP-W, S40TTAXP-W). FTXZ-N's manual has
-a matching feature, OUTDOOR UNIT QUIET (lowers outdoor unit noise), triggered
-by an ECONO/QUIET button that JP remotes don't have. Labelled 室外ユニット静音
-here for feature-completeness; state unconfirmed by capture on a JP unit.
-
-ECONO on that same button is itself unrelated to auto off (留守エコ, raw[7]
-bits6-7, `eye`): ECONO caps power draw during a running session, Auto off is
-a stop timer armed when nobody's home. Different sections of the manual,
-different bits. A batch of capture fixtures once carried "econo\_\*" source
-labels for Auto off captures — fixed, but noted here in case it resurfaces.
+- Comfort sleep timer): dual-use of the "on timer time" field.
+  Not supported on Japanese models, but possible on FTXZ-N.
+  Labelled 快適おやすみタイマー for feature-completeness.
+- Quiet: FTXZ-N documents a feature called OUTDOOR UNIT QUIET, which reduces
+  the noise produced by the outdoor unit. No button or
+  menu path on any Japanese-market remote I checked (S40WTRXP-W, S40TTAXP-W).
+  Labelled 室外ユニット静音 here for feature-completeness.
+- ECONO: lives on that same ECONO/QUIET button.
+  Caps power draw during a running session. Note that it is unrelated to AUTO OFF (留守エコ), which is a stop timer for nobody-home.
+  Not exposed as its own control since bit field conflicts with sensor auto feature. Need real captures with ECONO on/off to verify bit field location.
 
 ## Credits
 
