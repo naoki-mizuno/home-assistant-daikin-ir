@@ -17,7 +17,8 @@ capture wins and the field carries a note. Confirmed by capture:
 * raw[36] bit7: set in every capture ever taken, in every mode, never cleared.
   Treated as a constant the encoder need not reproduce (codes without it work).
 * raw[7] bits6-7: 留守エコ duration: 0=off, 1=1hr, 2=3hr. No separate enable
-  bit was ever observed, so this select *is* the feature's on/off.
+  bit was ever observed, so this select *is* the feature's on/off. English
+  manuals call 留守エコ "AUTO OFF" — a different feature from ECONO.
 * raw[8] bit4: 高温風 (heat high), matching the header's HeatHigh comment.
 * raw[33] bit2: おやすみ (sleep mode), absent from the header. Distinct from
   raw[36] bit5, the header's unverified international Comfort Sleep Timer,

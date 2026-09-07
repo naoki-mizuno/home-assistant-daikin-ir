@@ -158,6 +158,12 @@ a matching feature, OUTDOOR UNIT QUIET (lowers outdoor unit noise), triggered
 by an ECONO/QUIET button that JP remotes don't have. Labelled 室外ユニット静音
 here for feature-completeness; state unconfirmed by capture on a JP unit.
 
+ECONO on that same button is itself unrelated to auto off (留守エコ, raw[7]
+bits6-7, `eye`): ECONO caps power draw during a running session, Auto off is
+a stop timer armed when nobody's home. Different sections of the manual,
+different bits. A batch of capture fixtures once carried "econo\_\*" source
+labels for Auto off captures — fixed, but noted here in case it resurfaces.
+
 ## Credits
 
 - [IRremoteESP8266](https://github.com/crankyoldgit/IRremoteESP8266) — the

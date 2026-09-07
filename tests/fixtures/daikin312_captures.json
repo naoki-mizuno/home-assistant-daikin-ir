@@ -323,7 +323,7 @@
   },
   {
     "label": "eye 1h",
-    "source_label": "econo_1hr",
+    "source_label": "auto_off_1hr",
     "announce_item": 36,
     "raw": [
       "11",
@@ -369,7 +369,7 @@
   },
   {
     "label": "eye 3h",
-    "source_label": "econo_3hr",
+    "source_label": "auto_off_3hr",
     "announce_item": 36,
     "raw": [
       "11",
@@ -415,7 +415,7 @@
   },
   {
     "label": "eye off",
-    "source_label": "econo_off",
+    "source_label": "auto_off_off",
     "announce_item": 36,
     "raw": [
       "11",
