@@ -111,7 +111,7 @@ the English manuals for remotes that speak the same 312-bit protocol:
 | Sensor airflow — Area / Spot        | センサー風向 — エリア送風 / スポット送風 |
 | Auto off                            | 留守エコ                                 |
 | Mold proof                          | 内部クリーン                             |
-| Outdoor unit quiet                  | 静か運転                                 |
+| Outdoor unit quiet                  | 室外ユニット静音                                 |
 | Air purifying                       | 空気清浄                                 |
 | Fresh air supply ventilation        | 換気                                     |
 | Display brightness — High, Low, Off | 表示明るさ — 明暗切                      |

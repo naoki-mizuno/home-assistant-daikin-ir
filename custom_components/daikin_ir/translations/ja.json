@@ -145,7 +145,7 @@
       "streamer": { "name": "ストリーマ空気清浄" },
       "filter_clean": { "name": "フィルター掃除" },
       "mold": { "name": "内部クリーン" },
-      "quiet": { "name": "静か運転" },
+      "quiet": { "name": "室外ユニット静音" },
       "purify": { "name": "空気清浄" },
       "announce_enabled": { "name": "音声応答" },
       "sleep": { "name": "おやすみ" },
