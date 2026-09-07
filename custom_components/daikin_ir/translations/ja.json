@@ -111,6 +111,10 @@
         "name": "留守エコ",
         "state": { "off": "切", "1h": "1時間", "3h": "3時間" }
       },
+      "sensor_airflow": {
+        "name": "センサー風向",
+        "state": { "off": "切", "area": "エリア送風", "spot": "スポット送風" }
+      },
       "beep": {
         "name": "音量",
         "state": {

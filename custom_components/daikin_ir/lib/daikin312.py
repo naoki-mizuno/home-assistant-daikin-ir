@@ -8,8 +8,14 @@ capture wins and the field carries a note. Confirmed by capture:
 
 * raw[14] bit4: ストリーマ空清 (the header calls this `Clean`/AirCleanMode).
 * raw[14] bit7: フィルター掃除, absent from the header; announces as Filter.
-* raw[36] bit2: センサー風向 flag, set with SwingH/SwingV sensor-auto
-  (the header calls this `Econo`).
+* raw[36] bits 0-2: センサー風向 mode — 0 切 / 0b011 エリア送風 / 0b100 スポット
+  送風. The header calls bit2 `Econo`; captures of the センサー風向 button
+  announcing "エリアに設定されました" (bits 0-1 set) vs "スポット" (bit2 set)
+  show this is a 3-state select, not one flag. Both non-off modes also force
+  SwingV=自動 + SwingH=自動, and the button announces A_SWING_SENSOR (0x15) in
+  every direction, cancel included.
+* raw[36] bit7: set in every capture ever taken, in every mode, never cleared.
+  Treated as a constant the encoder need not reproduce (codes without it work).
 * raw[7] bits6-7: 留守エコ duration: 0=off, 1=1hr, 2=3hr. No separate enable
   bit was ever observed, so this select *is* the feature's on/off.
 * raw[8] bit4: 高温風 (heat high), matching the header's HeatHigh comment.
@@ -20,7 +26,8 @@ capture wins and the field carries a note. Confirmed by capture:
   raw[27] = 0x80. Not in the header at all.
 
 Still unidentified: raw[14] bits 1 and 6, which the remote sets in patterns the
-captures do not explain. Codes generated without them work, so they are left
+captures do not explain (bit 6 rides with every センサー風向 press but not the
+older sensor-auto captures). Codes generated without them work, so they are left
 clear.
 
 Ranges and option lists come from the S40TTAXP-W manual (3P420060-1C) where it
@@ -111,6 +118,9 @@ SWING_H: dict[str, int] = {
     "right": 0x0D,
     "right_max": 0x0E,
 }
+# センサー風向: 切 / エリア送風 / スポット送風, in raw[36] bits 0-2. エリア is
+# bits 0+1, スポット is bit 2 (the header's `Econo`). Both drive the vanes to 自動.
+SENSOR_AIRFLOW: dict[str, int] = {"off": 0x0, "area": 0x3, "spot": 0x4}
 BEEPS: dict[str, int] = {"normal": 0, "quiet": 1, "loud": 2, "off": 3}
 LIGHTS: dict[str, int] = {"bright": 1, "dim": 2, "off": 3}
 EYE: dict[str, int] = {"off": 0, "1h": 1, "3h": 2}
@@ -188,7 +198,8 @@ _ANNOUNCE_PRIORITY: tuple[tuple[str, int], ...] = (
     ("humidity", A_HUMIDITY),
     ("humidity_mode", A_HUMIDITY),
     ("fan", A_FAN),
-    ("swing_v", -2),  # circulate/breeze and sensor-auto announce differently
+    ("sensor_airflow", A_SWING_SENSOR),  # センサー風向; ahead of the vane axes it forces
+    ("swing_v", -2),  # circulate/breeze announce differently
     ("swing_h", -2),
     ("powerful", A_POWERFUL),
     ("streamer", A_FAN_ONLY),
@@ -228,7 +239,7 @@ _RESET = bytes(
         0x00, 0x06, 0x60,              # 30-32 on/off timer times (disabled)
         0x00,                          # 33    powerful/quiet
         0x00, 0xC5,                    # 34-35 announce enable
-        0x00,                          # 36    sensor swing/eye/purify/sleep
+        0x00,                          # 36    センサー風向 / purify
         0x08,                          # 37
         0x00,                          # 38    checksum #2
     ]
@@ -240,41 +251,40 @@ class Daikin312Raw(RawState):
 
     LENGTH = STATE_LENGTH
 
-    CurrentTime  = Field(5, 0, 12)   # clock, minutes past midnight
-    Power2       = Field(6, 7)       # inverse of Power
-    EyeTimer     = Field(7, 6, 2)    # 留守エコ: 0 off / 1 1hr / 2 3hr
-    FreshAir     = Field(8, 0)       # unverified
-    Mold         = Field(8, 3)       # 内部クリーン
-    HeatHigh     = Field(8, 4)       # 高温風
-    FreshAirHigh = Field(8, 7)       # unverified
-    AnnounceItem = Field(9, 0, 8)    # A_* announce id
-    Light        = Field(12, 0, 2)   # LIGHTS index
-    Beep         = Field(12, 2, 2)   # BEEPS index
-    SwingV       = Field(12, 4, 4)   # SWING_V index
-    SwingH       = Field(13, 0, 8)   # SWING_H index
-    Streamer     = Field(14, 4)      # ストリーマ空清 (header: Clean)
-    FilterClean  = Field(14, 7)      # フィルター掃除 (absent from header)
-    Sum1         = Field(19, 0, 8)   # section 1 checksum
-    Power        = Field(25, 0)      # main power
-    OnTimer      = Field(25, 1)      # on-timer enabled
-    OffTimer     = Field(25, 2)      # off-timer enabled
-    Mode         = Field(25, 4, 3)   # MODES index
-    Temp         = Field(26, 0, 7)   # target temp, or 快適自動 offset
-    HumidOn      = Field(26, 7)      # humidity mode enabled
-    Humidity     = Field(27, 0, 8)   # target humidity %, see HUMIDITY_*
-    Fan          = Field(28, 4, 4)   # FANS index
-    OnTime       = Field(30, 0, 12)  # on-timer time, minutes past midnight
-    OffTime      = Field(31, 4, 12)  # off-timer time, minutes past midnight
-    Powerful     = Field(33, 0)      # パワフル
-    Sleep        = Field(33, 2)      # おやすみ; confirmed by capture, not in the header
-    Quiet        = Field(33, 5)      # 静か運転; unverified
-    Announce     = Field(34, 3)      # enable bit, gates AnnounceItem
-    Eye          = Field(36, 1)      # unverified
-    SensorSwing  = Field(36, 2)      # センサー風向 (header: Econo)
-    Purify       = Field(36, 4)      # unverified
-    ComfortSleep = Field(36, 5)      # on_timer_mode == comfort_sleep; unverified intl feature,
+    CurrentTime   = Field(5, 0, 12)   # clock, minutes past midnight
+    Power2        = Field(6, 7)       # inverse of Power
+    EyeTimer      = Field(7, 6, 2)    # 留守エコ: 0 off / 1 1hr / 2 3hr
+    FreshAir      = Field(8, 0)       # unverified
+    Mold          = Field(8, 3)       # 内部クリーン
+    HeatHigh      = Field(8, 4)       # 高温風
+    FreshAirHigh  = Field(8, 7)       # unverified
+    AnnounceItem  = Field(9, 0, 8)    # A_* announce id
+    Light         = Field(12, 0, 2)   # LIGHTS index
+    Beep          = Field(12, 2, 2)   # BEEPS index
+    SwingV        = Field(12, 4, 4)   # SWING_V index
+    SwingH        = Field(13, 0, 8)   # SWING_H index
+    Streamer      = Field(14, 4)      # ストリーマ空清 (header: Clean)
+    FilterClean   = Field(14, 7)      # フィルター掃除 (absent from header)
+    Sum1          = Field(19, 0, 8)   # section 1 checksum
+    Power         = Field(25, 0)      # main power
+    OnTimer       = Field(25, 1)      # on-timer enabled
+    OffTimer      = Field(25, 2)      # off-timer enabled
+    Mode          = Field(25, 4, 3)   # MODES index
+    Temp          = Field(26, 0, 7)   # target temp, or 快適自動 offset
+    HumidOn       = Field(26, 7)      # humidity mode enabled
+    Humidity      = Field(27, 0, 8)   # target humidity %, see HUMIDITY_*
+    Fan           = Field(28, 4, 4)   # FANS index
+    OnTime        = Field(30, 0, 12)  # on-timer time, minutes past midnight
+    OffTime       = Field(31, 4, 12)  # off-timer time, minutes past midnight
+    Powerful      = Field(33, 0)      # パワフル
+    Sleep         = Field(33, 2)      # おやすみ; confirmed by capture, not in the header
+    Quiet         = Field(33, 5)      # 静か運転; unverified
+    Announce      = Field(34, 3)      # enable bit, gates AnnounceItem
+    SensorAirflow = Field(36, 0, 3)  # センサー風向: 0 切 / 3 エリア / 4 スポット (header: bit2 Econo)
+    Purify        = Field(36, 4)      # unverified
+    ComfortSleep  = Field(36, 5)      # on_timer_mode == comfort_sleep; unverified intl feature,
                                       # never observed set on this JP unit
-    Sum2         = Field(38, 0, 8)   # section 2 checksum
+    Sum2          = Field(38, 0, 8)   # section 2 checksum
 
     def __init__(self, raw: bytes | bytearray | None = None) -> None:
         super().__init__(raw if raw is not None else _RESET)
@@ -316,6 +326,7 @@ class Daikin312State:
     fan: str = "auto"
     swing_v: str = "auto"
     swing_h: str = "auto"
+    sensor_airflow: str = "off"  # センサー風向: off | area (エリア) | spot (スポット)
     humidity_mode: str = "off"  # 切 | 連続 | 指定%
     humidity: int = 50
     heat_high: bool = False  # 高温風
@@ -391,6 +402,12 @@ class Daikin312Protocol(Protocol):
             modes=(MODE_HEAT,),
             category=None,
             icon="mdi:fire",
+        ),
+        Control(
+            "sensor_airflow",
+            SELECT,
+            options=tuple(SENSOR_AIRFLOW),
+            icon="mdi:motion-sensor",
         ),
         Control(
             "streamer",
@@ -519,6 +536,18 @@ class Daikin312Protocol(Protocol):
         if powerful and quiet:
             quiet = "quiet" not in changed
 
+        # センサー風向 (エリア/スポット) drives both vanes to 自動; conversely,
+        # picking a vane position directly cancels it — the way the remote's
+        # buttons interact. The vane→off half is inferred from that behaviour,
+        # not from a capture of a vane button pressed while エリア/スポット is on.
+        sensor_airflow, swing_v, swing_h = (
+            new.sensor_airflow, new.swing_v, new.swing_h
+        )
+        if "sensor_airflow" in changed and sensor_airflow != "off":
+            swing_v = swing_h = "auto"
+        elif ("swing_v" in changed or "swing_h" in changed) and sensor_airflow != "off":
+            sensor_airflow = "off"
+
         new = dataclasses.replace(
             new,
             temp=temp,
@@ -527,6 +556,9 @@ class Daikin312Protocol(Protocol):
             humidity=humidity,
             powerful=powerful,
             quiet=quiet and not powerful,
+            sensor_airflow=sensor_airflow,
+            swing_v=swing_v,
+            swing_h=swing_h,
         )
         item = self._announce_for(new, changed)
         new = dataclasses.replace(
@@ -558,8 +590,9 @@ class Daikin312Protocol(Protocol):
                     return A_HEAT_HIGH
                 return _MODE_ANNOUNCE.get(state.mode)
             if item == -2:  # swing
-                if state.swing_v == "auto" and state.swing_h == "auto":
-                    return A_SWING_SENSOR  # センサー風向
+                # Setting a vane axis to 自動 by itself is a plain swing change,
+                # never the センサー風向 feature — that has its own select above,
+                # and apply() turns it off when a vane axis is picked directly.
                 value = state.swing_v if key == "swing_v" else state.swing_h
                 if value in ("breeze", "circulate"):
                     return A_CIRCULATION
@@ -583,9 +616,11 @@ class Daikin312Protocol(Protocol):
         f.Fan = FANS[state.fan]
         f.SwingV = SWING_V[state.swing_v]
         f.SwingH = SWING_H[state.swing_h]
-        # センサー風向 is one button that puts both directions on 自動, and the
-        # captures only ever show this bit set when both are.
-        f.SensorSwing = state.swing_v == "auto" and state.swing_h == "auto"
+        f.SensorAirflow = SENSOR_AIRFLOW[state.sensor_airflow]
+        if state.sensor_airflow != "off":
+            # エリア/スポット always ride with both vanes on 自動 (captures).
+            f.SwingV = SWING_V["auto"]
+            f.SwingH = SWING_H["auto"]
 
         if state.mode == MODE_AUTO:
             # 快適自動: the temperature byte carries a signed half-degree offset.

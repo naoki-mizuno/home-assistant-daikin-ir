@@ -111,6 +111,10 @@
         "name": "Auto off",
         "state": { "off": "Off", "1h": "1 hour", "3h": "3 hours" }
       },
+      "sensor_airflow": {
+        "name": "Sensor airflow",
+        "state": { "off": "Off", "area": "Area airflow", "spot": "Spot airflow" }
+      },
       "beep": {
         "name": "Sound volume",
         "state": {

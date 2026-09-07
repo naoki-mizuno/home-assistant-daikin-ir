@@ -84,8 +84,9 @@ def test_captures_have_valid_checksums():
         ("streamer off", "Streamer", 0),
         ("filter_clean on (0x17)", "FilterClean", 1),
         ("filter_clean off", "FilterClean", 0),
-        ("swing sensor auto on", "SensorSwing", 1),
-        ("swing sensor auto off", "SensorSwing", 0),
+        ("sensor_airflow area", "SensorAirflow", d.SENSOR_AIRFLOW["area"]),
+        ("sensor_airflow spot", "SensorAirflow", d.SENSOR_AIRFLOW["spot"]),
+        ("sensor_airflow cancel", "SensorAirflow", 0),
         ("sleep on", "Sleep", 1),
         ("sleep off", "Sleep", 0),
         # Bits IRremoteESP8266's `union Daikin312Protocol` header (ir_Daikin.h)
@@ -107,15 +108,17 @@ def test_capture_bit_map(label, field, expected):
     assert getattr(_capture(label), field) == expected
 
 
-def test_sensor_swing_reproduces_the_remote():
-    """Sensor airflow puts both directions on auto plus the flag in raw[36]."""
-    capture = _capture("swing sensor auto on")
-    mine = PROTOCOL.pack(dataclasses.replace(BASE, swing_v="auto", swing_h="auto"))
-    assert (mine.SwingV, mine.SwingH, mine.SensorSwing) == (
+@pytest.mark.parametrize("mode", ["area", "spot"])
+def test_sensor_airflow_reproduces_the_remote(mode):
+    """Area/spot ride with both swing directions on auto and set raw[36] bits 0-2."""
+    capture = _capture(f"sensor_airflow {mode}")
+    mine = PROTOCOL.pack(dataclasses.replace(BASE, sensor_airflow=mode))
+    assert (mine.SwingV, mine.SwingH, mine.SensorAirflow) == (
         capture.SwingV,
         capture.SwingH,
-        capture.SensorSwing,
+        capture.SensorAirflow,
     )
+    assert mine.SensorAirflow == d.SENSOR_AIRFLOW[mode]
 
 
 def test_comfort_offset_round_trip():
@@ -176,7 +179,9 @@ def test_powerful_and_quiet_are_exclusive():
         ({"fan": "level_3"}, d.A_FAN),
         ({"swing_v": "position_6"}, d.A_SWING_V),
         ({"swing_v": "circulate"}, d.A_CIRCULATION),
-        ({"swing_v": "auto", "swing_h": "auto"}, d.A_SWING_SENSOR),
+        ({"swing_v": "auto", "swing_h": "auto"}, d.A_SWING_V),
+        ({"sensor_airflow": "area"}, d.A_SWING_SENSOR),
+        ({"sensor_airflow": "spot"}, d.A_SWING_SENSOR),
         ({"swing_h": "left"}, d.A_SWING_H),
         ({"powerful": True}, d.A_POWERFUL),
         ({"streamer": True}, d.A_FAN_ONLY),
@@ -192,6 +197,45 @@ def test_powerful_and_quiet_are_exclusive():
 )
 def test_announce_follows_the_change(changes, expected):
     assert PROTOCOL.apply(BASE, changes).announce_item == expected
+
+
+def test_swing_h_alone_does_not_borrow_the_sensor_announce():
+    """Setting a vane axis to auto is a plain swing change — the sensor airflow
+    feature has its own select. swing_h to auto while swing_v already sits on
+    auto still announces as a horizontal-swing change (capture: "swing_h auto
+    (swing_v not auto)")."""
+    already_auto = dataclasses.replace(BASE, swing_v="auto")
+    state = PROTOCOL.apply(already_auto, {"swing_h": "auto"})
+    assert state.announce_item == d.A_SWING_H
+    assert (
+        state.announce_item == _capture("swing_h auto (swing_v not auto)").AnnounceItem
+    )
+
+
+def test_sensor_airflow_forces_both_vanes_to_auto():
+    state = PROTOCOL.apply(
+        dataclasses.replace(BASE, swing_v="position_3", swing_h="left"),
+        {"sensor_airflow": "area"},
+    )
+    assert (state.swing_v, state.swing_h) == ("auto", "auto")
+    assert state.announce_item == d.A_SWING_SENSOR
+    assert PROTOCOL.pack(state).SensorAirflow == d.SENSOR_AIRFLOW["area"]
+
+
+def test_manual_vane_pick_cancels_sensor_airflow():
+    on = dataclasses.replace(
+        BASE, sensor_airflow="spot", swing_v="auto", swing_h="auto"
+    )
+    state = PROTOCOL.apply(on, {"swing_v": "position_2"})
+    assert state.sensor_airflow == "off"
+    assert state.announce_item == d.A_SWING_V
+    assert PROTOCOL.pack(state).SensorAirflow == 0
+
+
+def test_capture_announce_items_match_their_recorded_label():
+    for entry in CAPTURES:
+        frame = d.Daikin312Raw(bytes(int(b, 16) for b in entry["raw"]))
+        assert frame.AnnounceItem == entry["announce_item"], entry["label"]
 
 
 def test_announce_switch_silences_everything():

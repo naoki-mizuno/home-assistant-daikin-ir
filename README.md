@@ -18,9 +18,9 @@ usually has its own blaster in its own room.
 - `climate` entity: power, mode, target temperature, target humidity, fan
   speed, vertical and horizontal swing.
 - Separate entities for everything else the remote has: Powerful, Flash Streamer
-  air purifying, Cleaning filter, High-temperature airflow, Auto off, Mold
-  proof, the on/off/sleep timers, Display brightness, Sound volume and Voice
-  response ([Japanese terms](#japanese-terms)).
+  air purifying, Cleaning filter, High-temperature airflow, Sensor airflow
+  (area/spot), Auto off, Mold proof, the on/off/sleep timers, Display
+  brightness, Sound volume and Voice response ([Japanese terms](#japanese-terms)).
 - Optional temperature, humidity and power sensors.
 
 No `hvac_action` is reported. IR is write-only, so any "heating"/"idle" state
@@ -103,28 +103,29 @@ the English manuals for remotes that speak the same 312-bit protocol:
 - [CTXM-R / FTXM-R (ARC466A67) user reference guide, `4P518786-5F`](https://www.daikin.eu/content/dam/document-library/user%20reference%20guide/ac/Split/CTXM-R,FTXM-R_4PEN518786-5F_User%20reference%20guide_English.pdf)
 - [Daikin's web manual for the ARC466A63](https://web-manual.dit-daikin.com/ra/en/remote_controller/)
 
-| English (this integration)          | Japanese               |
-| ----------------------------------- | ---------------------- |
-| Powerful                            | パワフル               |
-| Flash Streamer air purifying        | ストリーマ空気清浄     |
-| Cleaning filter                     | フィルター掃除         |
-| Auto off                            | 留守エコ               |
-| Mold proof                          | 内部クリーン           |
-| Outdoor unit quiet                  | 静か運転               |
-| Air purifying                       | 空気清浄               |
-| Fresh air supply ventilation        | 換気                   |
-| Fresh air supply ventilation, high  | 換気・強               |
-| Display brightness — High, Low, Off | 表示明るさ — 明暗切    |
-| Sound volume                        | 音量                   |
-| Comfort sleep timer                 | おやすみ               |
-| Indoor unit quiet (airflow rate)    | しずか                 |
-| Airflow rate 1-5                    | 風量1〜5               |
-| Level 1-6 (vertical airflow)        | 1〜6段階目             |
-| Circulation airflow                 | サーキュレーション風向 |
-| Breeze airflow                      | ゆらぎ                 |
-| Wide                                | ワイド                 |
-| Front blowing                       | 正面吹き               |
-| To the left / To the right          | 左寄り / 右寄り        |
+| English (this integration)          | Japanese                                 |
+| ----------------------------------- | ---------------------------------------- |
+| Powerful                            | パワフル                                 |
+| Flash Streamer air purifying        | ストリーマ空気清浄                       |
+| Cleaning filter                     | フィルター掃除                           |
+| Sensor airflow — Area / Spot        | センサー風向 — エリア送風 / スポット送風 |
+| Auto off                            | 留守エコ                                 |
+| Mold proof                          | 内部クリーン                             |
+| Outdoor unit quiet                  | 静か運転                                 |
+| Air purifying                       | 空気清浄                                 |
+| Fresh air supply ventilation        | 換気                                     |
+| Fresh air supply ventilation, high  | 換気・強                                 |
+| Display brightness — High, Low, Off | 表示明るさ — 明暗切                      |
+| Sound volume                        | 音量                                     |
+| Comfort sleep timer                 | おやすみ                                 |
+| Indoor unit quiet (airflow rate)    | しずか                                   |
+| Airflow rate 1-5                    | 風量1〜5                                 |
+| Level 1-6 (vertical airflow)        | 1〜6段階目                               |
+| Circulation airflow                 | サーキュレーション風向                   |
+| Breeze airflow                      | ゆらぎ                                   |
+| Wide                                | ワイド                                   |
+| Front blowing                       | 正面吹き                                 |
+| To the left / To the right          | 左寄り / 右寄り                          |
 
 Three features appear Japanese-market only and couldn't be found in
 any English Daikin manual, so their names here are made up:
