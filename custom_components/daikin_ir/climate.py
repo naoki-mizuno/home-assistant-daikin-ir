@@ -81,8 +81,9 @@ class DaikinIrClimate(ClimateEntity):
     def target_temperature(self) -> float | None:
         # In 快適自動 the unit picks the temperature; the offset number entity is
         # the only thing there is to set, so report nothing rather than a value
-        # the slider cannot change.
-        if self._state.mode == HVACMode.AUTO:
+        # the slider cannot change. 除湿 has no temperature setting either
+        # (see TEMP_RANGES comment in daikin312.py) — same treatment.
+        if self._state.mode in (HVACMode.AUTO, HVACMode.DRY):
             return None
         return self._state.temp
 
@@ -137,7 +138,7 @@ class DaikinIrClimate(ClimateEntity):
     async def async_set_temperature(self, **kwargs: Any) -> None:
         if (temperature := kwargs.get(ATTR_TEMPERATURE)) is None:
             return
-        if self._state.mode == HVACMode.AUTO:
+        if self._state.mode in (HVACMode.AUTO, HVACMode.DRY):
             return  # see target_temperature
         await self.device.async_set(temp=float(temperature))
 
