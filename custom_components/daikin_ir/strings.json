@@ -104,7 +104,9 @@
         "state": {
           "off": "Off",
           "continuous": "Continuous",
-          "manual": "Set point"
+          "50": "50%",
+          "55": "55%",
+          "60": "60%"
         }
       },
       "eye": {

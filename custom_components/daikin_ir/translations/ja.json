@@ -100,11 +100,13 @@
     },
     "select": {
       "humidity_mode": {
-        "name": "しつど",
+        "name": "湿度設定",
         "state": {
           "off": "切",
           "continuous": "連続",
-          "manual": "湿度指定"
+          "50": "50%",
+          "55": "55%",
+          "60": "60%"
         }
       },
       "eye": {

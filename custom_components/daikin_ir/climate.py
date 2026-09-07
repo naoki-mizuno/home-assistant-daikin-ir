@@ -34,10 +34,8 @@ class DaikinIrClimate(ClimateEntity):
     _attr_assumed_state = True
     _attr_translation_key = "daikin_ir"
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
-    _attr_supported_features = (
-        ClimateEntityFeature.TARGET_TEMPERATURE
-        | ClimateEntityFeature.TARGET_HUMIDITY
-        | ClimateEntityFeature.FAN_MODE
+    _BASE_FEATURES = (
+        ClimateEntityFeature.FAN_MODE
         | ClimateEntityFeature.SWING_MODE
         | ClimateEntityFeature.SWING_HORIZONTAL_MODE
         | ClimateEntityFeature.TURN_ON
@@ -66,6 +64,17 @@ class DaikinIrClimate(ClimateEntity):
         return self.device.state
 
     @property
+    def supported_features(self) -> ClimateEntityFeature:
+        """Only offer the sliders the unit accepts in the current mode."""
+        features = self._BASE_FEATURES
+        settable = self.device.protocol.settable(self._state)
+        if "temp" in settable:
+            features |= ClimateEntityFeature.TARGET_TEMPERATURE
+        if "humidity" in settable:
+            features |= ClimateEntityFeature.TARGET_HUMIDITY
+        return features
+
+    @property
     def hvac_mode(self) -> HVACMode:
         return HVACMode(self._state.mode) if self._state.power else HVACMode.OFF
 
@@ -79,11 +88,10 @@ class DaikinIrClimate(ClimateEntity):
 
     @property
     def target_temperature(self) -> float | None:
-        # In 快適自動 the unit picks the temperature; the offset number entity is
-        # the only thing there is to set, so report nothing rather than a value
-        # the slider cannot change. 除湿 has no temperature setting either
-        # (see TEMP_RANGES comment in daikin312.py) — same treatment.
-        if self._state.mode in (HVACMode.AUTO, HVACMode.DRY):
+        # In auto the unit picks the temperature and the offset number entity is
+        # the only handle; dry and fan-only have no temperature setting at all.
+        # Report nothing rather than a value the slider cannot change.
+        if "temp" not in self.device.protocol.settable(self._state):
             return None
         return self._state.temp
 
@@ -97,6 +105,8 @@ class DaikinIrClimate(ClimateEntity):
 
     @property
     def target_humidity(self) -> int | None:
+        if "humidity" not in self.device.protocol.settable(self._state):
+            return None
         return self._state.humidity
 
     @property
@@ -138,13 +148,13 @@ class DaikinIrClimate(ClimateEntity):
     async def async_set_temperature(self, **kwargs: Any) -> None:
         if (temperature := kwargs.get(ATTR_TEMPERATURE)) is None:
             return
-        if self._state.mode in (HVACMode.AUTO, HVACMode.DRY):
+        if "temp" not in self.device.protocol.settable(self._state):
             return  # see target_temperature
         await self.device.async_set(temp=float(temperature))
 
     async def async_set_humidity(self, humidity: int) -> None:
-        # Reaching for the slider means manual; the select switches it back off.
-        await self.device.async_set(humidity=int(humidity), humidity_mode="manual")
+        # apply() turns this into the matching set point on the select.
+        await self.device.async_set(humidity=int(humidity))
 
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         await self.device.async_set(fan=fan_mode)

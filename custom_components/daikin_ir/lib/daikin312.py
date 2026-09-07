@@ -148,12 +148,16 @@ FRESH_AIR = ("off", "on", "high")
 # humidity in 冷房 is what puts the unit into 除湿冷房. The header also lists
 # 40/45/50 for 暖房, which belongs to the humidifying (うるる) models — this one
 # says 「湿度は変えられません」 in heat, so it is not offered.
+HUMIDITY_PERCENTS = (50, 55, 60)
 HUMIDITY_STEPS: dict[str, tuple[int, ...]] = {
-    MODE_COOL: (50, 55, 60),
-    MODE_DRY: (50, 55, 60),
+    MODE_COOL: HUMIDITY_PERCENTS,
+    MODE_DRY: HUMIDITY_PERCENTS,
 }
 HUMIDITY_AUTO = 0xFF  # 連続: keep dehumidifying
-HUMIDITY_MODES = ("off", "continuous", "manual")
+# The set points are options in their own right rather than a separate "manual"
+# option plus a slider: the unit only speaks the mode aloud when the humidity
+# setting changes in the same frame, so the select has to carry the value.
+HUMIDITY_MODES = ("off", "continuous", *(str(p) for p in HUMIDITY_PERCENTS))
 HUMIDITY_OFF = 0x00
 # In 快適自動 the remote parks a non-percentage value here.
 HUMIDITY_COMFORT = 0x80
@@ -515,6 +519,16 @@ class Daikin312Protocol(Protocol):
     def new_state(self) -> Daikin312State:
         return Daikin312State()
 
+    def from_dict(self, data: dict[str, Any]) -> Daikin312State:
+        state = super().from_dict(data)
+        if state.humidity_mode in HUMIDITY_MODES:
+            return state
+        # An install from before the set points became options of their own
+        # stored humidity_mode="manual" alongside the percentage; fold the two
+        # back into the one field that now carries both.
+        percent = min(HUMIDITY_PERCENTS, key=lambda p: abs(p - state.humidity))
+        return dataclasses.replace(state, humidity_mode=str(percent), humidity=percent)
+
     # ── validation ───────────────────────────────────────────────────────────
 
     def temp_range(self, state: Daikin312State) -> tuple[float, float]:
@@ -526,6 +540,21 @@ class Daikin312Protocol(Protocol):
         # Humidification is heat/dry only, but the slider still needs bounds.
         every = sorted({v for s in HUMIDITY_STEPS.values() for v in s})
         return every[0], every[-1]
+
+    def settable(self, state: Daikin312State) -> frozenset[str]:
+        # Auto drives the temperature itself (auto_offset is the only handle),
+        # and dry and fan-only have no temperature setting at all.
+        fields = set()
+        if state.mode in TEMP_RANGES:
+            fields.add("temp")
+        if state.mode in HUMIDITY_STEPS:
+            fields.add("humidity")
+        return frozenset(fields)
+
+    def options_for(self, control: Control, state: Daikin312State) -> tuple[str, ...]:
+        if control.key == "humidity_mode" and state.mode == MODE_DRY:
+            return tuple(o for o in control.options if o != "off")
+        return control.options
 
     def apply(self, state: Daikin312State, changes: dict[str, Any]) -> Daikin312State:
         """Merge changes, clamp them to what the unit accepts, pick the announcement."""
@@ -540,10 +569,26 @@ class Daikin312Protocol(Protocol):
         )
 
         steps = HUMIDITY_STEPS.get(new.mode)
-        humidity_mode = new.humidity_mode if steps else "off"
-        humidity = (
-            min(steps, key=lambda s: abs(s - new.humidity)) if steps else new.humidity
-        )
+        humidity_mode, humidity = new.humidity_mode, new.humidity
+        if steps and "humidity" in changed:
+            # The climate slider picks a set point; keep the select showing it.
+            humidity = min(steps, key=lambda s: abs(s - humidity))
+            humidity_mode = str(humidity)
+        elif humidity_mode.isdigit():
+            humidity = int(humidity_mode)
+
+        picked = {"humidity", "humidity_mode"} & changed
+        if not steps:
+            humidity_mode = "off"
+        elif "mode" in changed and not picked:
+            # Arriving in a mode resets humidity control. Cool starts with it
+            # off, because a set point there puts the unit into cooling with
+            # dehumidification; dry starts continuous, since it has no off.
+            humidity_mode = "off" if new.mode == MODE_COOL else "continuous"
+        elif new.mode == MODE_DRY and humidity_mode == "off":
+            # Turning it off in dry makes the unit fall back to cool, which
+            # would leave the assumed state lying about the mode.
+            humidity_mode = "continuous"
 
         # Powerful and quiet are mutually exclusive on the unit.
         powerful, quiet = new.powerful, new.quiet
@@ -594,6 +639,11 @@ class Daikin312Protocol(Protocol):
             return A_ANNOUNCE
         if not state.announce_enabled:
             return None
+        if {"power", "mode"} <= changed and state.power:
+            # Switching on straight into a mode is one button on the remote and
+            # is announced as the mode, not as power (capture: "dry from off").
+            # Switching off still announces as power, whatever else rides along.
+            changed = changed - {"power"}
         for key, item in _ANNOUNCE_PRIORITY:
             if key not in changed:
                 continue
@@ -646,8 +696,8 @@ class Daikin312Protocol(Protocol):
             if state.mode in HUMIDITY_STEPS:
                 if state.humidity_mode == "continuous":
                     humidity = HUMIDITY_AUTO
-                elif state.humidity_mode == "manual":
-                    humidity = state.humidity
+                elif state.humidity_mode.isdigit():
+                    humidity = int(state.humidity_mode)
             f.Humidity = humidity
             f.HumidOn = humidity != HUMIDITY_OFF
             # With humidification on, the unit pins the temperature to its max.

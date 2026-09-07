@@ -1,4 +1,4 @@
-"""Multiple-choice controls (しつど, 留守エコ, ブザー, ランプ, タイマー種別)."""
+"""Multiple-choice controls (湿度設定, 留守エコ, ブザー, ランプ, タイマー種別)."""
 
 from __future__ import annotations
 
@@ -25,9 +25,10 @@ async def async_setup_entry(
 class DaikinIrSelect(DaikinIrEntity, SelectEntity):
     _attr_assumed_state = True
 
-    def __init__(self, device, control) -> None:
-        super().__init__(device, control)
-        self._attr_options = list(control.options)
+    @property
+    def options(self) -> list[str]:
+        """Per-mode, so a mode that forbids an option stops offering it."""
+        return list(self.device.protocol.options_for(self.control, self.device.state))
 
     @property
     def current_option(self) -> str:

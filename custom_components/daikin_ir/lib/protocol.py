@@ -98,6 +98,23 @@ class Protocol(ABC):
     def humidity_range(self, state: Any) -> tuple[int, int]:
         """Return (min, max) target humidity for the state's current mode."""
 
+    def settable(self, state: Any) -> frozenset[str]:
+        """Which of {"temp", "humidity"} the unit accepts in the current mode.
+
+        A mode the unit gives no setting for must not show a slider the frame
+        cannot carry, so `climate` drops the feature instead of offering a
+        control that silently does nothing.
+        """
+        return frozenset({"temp", "humidity"})
+
+    def options_for(self, control: Control, state: Any) -> tuple[str, ...]:
+        """The options a select may offer in the current mode.
+
+        Defaults to all of them; override where a mode forbids one, so the
+        option disappears rather than being accepted and then clamped away.
+        """
+        return control.options
+
     def to_dict(self, state: Any) -> dict[str, Any]:
         return dataclasses.asdict(state)
 

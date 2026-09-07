@@ -68,6 +68,10 @@ def _capture(label: str) -> d.Daikin312Raw:
     return d.Daikin312Raw(bytes(int(b, 16) for b in entry["raw"]))
 
 
+def _control(key: str):
+    return next(c for c in PROTOCOL.controls if c.key == key)
+
+
 def test_captures_have_valid_checksums():
     for entry in CAPTURES:
         frame = d.Daikin312Raw(bytes(int(b, 16) for b in entry["raw"]))
@@ -153,12 +157,83 @@ def test_temperature_is_clamped_per_mode():
 
 
 def test_humidity_snaps_to_supported_steps():
-    state = PROTOCOL.apply(
-        BASE, {"mode": "dry", "humidity_mode": "manual", "humidity": 53}
-    )
+    """The climate slider is free-running, so a set point has to snap to one of
+    the three the unit accepts, and the select has to follow it there."""
+    state = PROTOCOL.apply(BASE, {"mode": "dry", "humidity": 53})
     assert state.humidity == 55
+    assert state.humidity_mode == "55"
     # heat mode has no humidity setting on this model, so the feature turns itself off.
     assert PROTOCOL.apply(state, {"mode": "heat"}).humidity_mode == "off"
+
+
+def test_entering_dry_turns_humidity_control_on():
+    """Dry only speaks its mode aloud when the humidity setting moves in the
+    same frame, and it has no off — so arriving there starts it continuous."""
+    state = PROTOCOL.apply(BASE, {"mode": "dry"})
+    assert state.humidity_mode == "continuous"
+    assert PROTOCOL.pack(state).Humidity == d.HUMIDITY_AUTO
+    # The mode still wins the announcement over the humidity it drags along.
+    assert state.announce_item == d.A_DRY
+
+
+def test_entering_cool_turns_humidity_control_off():
+    """A set point in cool puts the unit into cooling with dehumidification,
+    which is not what picking plain cool asked for."""
+    dry = PROTOCOL.apply(BASE, {"mode": "dry", "humidity": 60})
+    assert dry.humidity_mode == "60"
+    assert PROTOCOL.apply(dry, {"mode": "cool"}).humidity_mode == "off"
+
+
+def test_dry_refuses_to_turn_humidity_control_off():
+    """Off in dry makes the unit fall back to cool on its own, which would
+    leave the assumed state claiming a mode the unit is no longer in."""
+    dry = PROTOCOL.apply(BASE, {"mode": "dry"})
+    assert PROTOCOL.apply(dry, {"humidity_mode": "off"}).humidity_mode == "continuous"
+    assert "off" not in PROTOCOL.options_for(_control("humidity_mode"), dry)
+    # Cool keeps it, as the only way back out of dehumidified cooling.
+    cool = PROTOCOL.apply(BASE, {"mode": "cool"})
+    assert "off" in PROTOCOL.options_for(_control("humidity_mode"), cool)
+
+
+@pytest.mark.parametrize(
+    ("mode", "expected"),
+    [
+        ("cool", {"temp", "humidity"}),
+        ("heat", {"temp"}),
+        ("dry", {"humidity"}),
+        ("auto", set()),  # auto_offset is the only handle
+        ("fan_only", set()),
+    ],
+)
+def test_settable_matches_what_the_frame_can_carry(mode, expected):
+    state = PROTOCOL.apply(BASE, {"mode": mode})
+    assert PROTOCOL.settable(state) == expected
+
+
+def test_restoring_a_retired_manual_set_point():
+    """A state stored before the set points became options of their own must
+    not come back holding an option the select no longer offers."""
+    stored = {"mode": "dry", "humidity_mode": "manual", "humidity": 55}
+    state = PROTOCOL.from_dict(stored)
+    assert state.humidity_mode == "55"
+    assert state.humidity_mode in d.HUMIDITY_MODES
+    assert PROTOCOL.pack(state).Humidity == 55
+
+
+def test_switching_on_into_a_mode_announces_the_mode():
+    """Pressing a mode button while off is one press on the remote, and both
+    captures of it carry the mode's announce id with Power already set — so
+    power must not outrank the mode it arrived with. Switching off is still
+    announced as power."""
+    for label in ("dry from off", "dry (already in dry)"):
+        assert _capture(label).AnnounceItem == d.A_DRY, label
+    assert _capture("dry from off").Power == 1
+
+    off = dataclasses.replace(BASE, power=False)
+    state = PROTOCOL.apply(off, {"power": True, "mode": "dry"})
+    assert state.announce_item == d.A_DRY
+    off_again = PROTOCOL.apply(BASE, {"power": False, "mode": "dry"})
+    assert off_again.announce_item == d.A_POWER
 
 
 def test_powerful_and_quiet_are_exclusive():
