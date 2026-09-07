@@ -350,7 +350,7 @@ class Daikin312State:
     filter_clean: bool = False  # フィルター掃除
     eye: str = "off"  # 留守エコ: off | 1h | 3h
     mold: bool = False  # 内部クリーン; unverified
-    purify: bool = False  # unverified
+    purify: bool = False  # unverified; not in menu, see Control list comment
     fresh_air: str = "off"  # ventilation: off | on | high; unverified, S40WTRXP-W only
     beep: str = "quiet"
     light: str = "bright"
@@ -449,11 +449,11 @@ class Daikin312Protocol(Protocol):
             SWITCH,
             icon="mdi:volume-low",
         ),
-        Control(
-            "purify",
-            SWITCH,
-            icon="mdi:air-purifier",
-        ),
+        # purify (raw[36] bit4) dropped from the menu: no button or menu item
+        # named 空気清浄/purify in the S40WTRXP-W, S40TTAXP-W, or FTXZ-N manuals
+        # beyond ストリーマ空気清浄 (already `streamer`, raw[14] bit4). No known
+        # trigger to capture. State field kept below so we can still decode/send
+        # it if a future capture ever turns up a real source for the bit.
         Control(
             "fresh_air",
             SELECT,
