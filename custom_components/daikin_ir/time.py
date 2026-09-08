@@ -1,4 +1,4 @@
-"""Timer controls (入タイマー / 切タイマー).
+"""Timer controls (on-timer / off-timer).
 
 The unit stores absolute clock times, not durations, which is why every frame
 also carries the current time (see `DaikinIrDevice.async_set`).

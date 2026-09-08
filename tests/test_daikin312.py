@@ -320,7 +320,7 @@ def test_announce_follows_the_change(changes, expected):
 
 
 def test_swing_h_alone_does_not_borrow_the_sensor_announce():
-    """Setting a vane axis to auto is a plain swing change — the sensor airflow
+    """Setting a flap or louvre axis to auto is a plain swing change — the sensor airflow
     feature has its own select. swing_h to auto while swing_v already sits on
     auto still announces as a horizontal-swing change (capture: "swing_h auto
     (swing_v not auto)")."""
@@ -364,7 +364,7 @@ def test_the_unit_picks_the_phrase_from_its_own_state_not_the_frame():
     assert entering.CurrentTime != streamer_off.CurrentTime
 
 
-def test_sensor_airflow_forces_both_vanes_to_auto():
+def test_sensor_airflow_forces_flaps_and_louvres_to_auto():
     state = PROTOCOL.apply(
         dataclasses.replace(BASE, swing_v="position_3", swing_h="left"),
         {"sensor_airflow": "area"},
@@ -374,7 +374,7 @@ def test_sensor_airflow_forces_both_vanes_to_auto():
     assert PROTOCOL.pack(state).SensorAirflow == d.SENSOR_AIRFLOW["area"]
 
 
-def test_manual_vane_pick_cancels_sensor_airflow():
+def test_manual_flap_or_louvre_pick_cancels_sensor_airflow():
     on = dataclasses.replace(
         BASE, sensor_airflow="spot", swing_v="auto", swing_h="auto"
     )

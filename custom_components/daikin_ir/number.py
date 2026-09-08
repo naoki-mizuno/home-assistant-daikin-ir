@@ -1,4 +1,4 @@
-"""Numeric controls — currently the 快適自動 temperature offset."""
+"""Numeric controls — currently the Comfort Auto temperature offset."""
 
 from __future__ import annotations
 

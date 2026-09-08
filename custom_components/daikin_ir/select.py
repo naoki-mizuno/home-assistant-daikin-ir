@@ -1,4 +1,4 @@
-"""Multiple-choice controls (湿度設定, 留守エコ, ブザー, ランプ, タイマー種別)."""
+"""Multiple-choice controls (humidity, auto off, beep, light, timer type)."""
 
 from __future__ import annotations
 

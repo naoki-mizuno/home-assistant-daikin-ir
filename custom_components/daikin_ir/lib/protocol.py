@@ -72,7 +72,7 @@ class Protocol(ABC):
     # HA hvac_mode string -> the mode this protocol actually stores it as.
     # Empty for protocols where every HA mode is a distinct unit mode; a
     # protocol whose unit conflates two HA modes (e.g. Daikin312's single
-    # 快適自動 mode answering to both "auto" and "heat_cool") overrides this.
+    # Comfort Auto mode answering to both "auto" and "heat_cool") overrides this.
     mode_aliases: dict[str, str] = {}
 
     @abstractmethod

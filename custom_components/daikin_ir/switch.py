@@ -1,4 +1,4 @@
-"""Boolean controls (パワフル, ストリーマ空清, フィルター掃除 …)."""
+"""Boolean controls (powerful, streamer air purifying, cleaning filter …)."""
 
 from __future__ import annotations
 

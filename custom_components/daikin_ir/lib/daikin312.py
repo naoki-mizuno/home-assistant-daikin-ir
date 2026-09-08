@@ -6,9 +6,9 @@ The byte/bit layout mirrors `union Daikin312Protocol` in IRremoteESP8266's
 Where captures from a real ARC472A43 remote disagree with that header, the
 capture wins and the field carries a note. Confirmed by capture:
 
-* raw[14] bit4: ストリーマ空清 (the header calls this `Clean`/AirCleanMode).
-* raw[14] bit7: フィルター掃除, absent from the header; announces as Filter.
-* raw[36] bits 0-2: センサー風向 mode — 0 off / 0b011 area / 0b100 spot
+* raw[14] bit4: streamer air purifying (the header calls this `Clean`/AirCleanMode).
+* raw[14] bit7: cleaning filter, absent from the header; announces as Filter.
+* raw[36] bits 0-2: sensor airflow mode — 0 off / 0b011 area / 0b100 spot
   The header calls bit2 `Econo`; captures of the "sensor auto" button
   (bits 0-1 set) vs "spot" (bit2 set) show this is a 3-state select,
   not one flag. Both area/spot also force SwingV=auto + SwingH=auto.
@@ -17,36 +17,39 @@ capture wins and the field carries a note. Confirmed by capture:
   remote, not that a real Econo flag hides nearby. Since ECONO and QUIET are
   International-only feature, help is needed to expose these features.
 * raw[36] bit7: set in every capture ever taken, in every mode, never cleared.
-  Treated as a constant the encoder need not reproduce (codes without it work).
-* raw[7] bits6-7: 留守エコ duration: 0=off, 1=1hr, 2=3hr. No separate enable
-  bit was ever observed, so this select *is* the feature's on/off. English
-  manuals call 留守エコ "AUTO OFF" — a different feature from ECONO.
-* raw[8] bit4: 高温風 (heat high), matching the header's HeatHigh comment.
-* raw[33] bit2: おやすみ (sleep mode), absent from the header. Distinct from
+  Treated as a constant the encoder need not reproduce: codes without it work,
+  a sensor-airflow press included. Sending our own unpatched frame by hand was
+  announced as spot, which also rules out bytes 10, 11, 15, 17, 34 bit1,
+  35 bit0 and 37 (all constant in every capture) and byte 6 bit5 (which we set
+  and no capture ever does) as things the unit requires.
+* raw[7] bits6-7: auto-off ("AUTO OFF") duration: 0=off, 1=1hr, 2=3hr. No
+  separate enable bit was ever observed, so this select *is* the feature's
+  on/off. It is a different feature from ECONO.
+* raw[8] bit4: high-temperature airflow (heat high), matches the header's HeatHigh.
+* raw[33] bit2: comfort sleep (sleep mode), absent from the header. Distinct from
   raw[36] bit5, the header's unverified international Comfort Sleep Timer,
   which this JP unit's remote has no button for.
-* raw[26] in 快適自動: 0xC0 | 5-bit two's-complement half-degree offset, and
-  raw[27] = 0x80. Not in the header at all.
+* raw[26] in comfort-auto mode: 0xC0 | 5-bit two's-complement half-degree offset,
+  and raw[27] = 0x80. Not in the header at all.
 
-raw[9] (AnnounceItem) names the button pressed. 0x1A covers the whole
-送風/ストリーマ空清 button: entering 送風, and switching streamer either way,
-in 送風 and in 冷房 alike. The unit picks its wording by diffing the frame
-against the state it is already in — captures of "entering 送風" and
-"streamer off" are the same 39 bytes apart from the timestamp in raw[5], yet
-announce 送風運転 and ストリーマ切 respectively. So which of these a change is
-announced as cannot be chosen from here, and the streamer bit we send along with
-a mode change is what decides it: arriving in 送風 with raw[14] bit4 set is heard
-as the streamer phrase. The remote's own 送風 press from off sends that bit clear.
+raw[9] (AnnounceItem) names the button pressed. 0x1A covers the whole fan-only /
+streamer button: entering fan-only mode, and switching streamer either way, in
+fan-only and in cool alike. The unit picks its wording by diffing the frame
+against the state it is already in — captures of "entering fan only" and
+"streamer off" are the same 39 bytes apart from the timestamp in raw[5], yet are
+announced as "fan only" and "streamer off" respectively. So which of these a
+change is announced as cannot be chosen from here, and the streamer bit we send
+along with a mode change is what decides it: arriving in fan-only mode with
+raw[14] bit4 set is heard as the streamer phrase. The remote's own fan-only
+press from off sends that bit clear.
 
 Still unidentified: raw[14] bits 1 and 6, which the remote sets in patterns the
-captures do not explain (bit 6 rides with every センサー風向 press but not the
+captures do not explain (bit 6 rides with every sensor-airflow press but not the
 older sensor-auto captures). Codes generated without them work, so they are left
 clear.
 
 Ranges and option lists come from the S40TTAXP-W manual (3P420060-1C) where it
 is narrower than the header, since the header covers every Daikin312 model.
-
-TODO: make this docstring easier to read (especially for non-Japanese speakers).
 """
 
 from __future__ import annotations
@@ -104,7 +107,8 @@ FANS: dict[str, int] = {
     "level_4": 6,
     "level_5": 7,
 }
-# 風向上下: 1～6段階目 plus 自動 / スイング / ゆらぎ / サーキュレーション風向.
+# Vertical airflow direction (flaps): levels 1-6 plus auto / swing / breeze /
+# circulation.
 SWING_V: dict[str, int] = {
     "off": 0x0,
     "auto": 0xE,
@@ -118,8 +122,8 @@ SWING_V: dict[str, int] = {
     "breeze": 0xC,
     "circulate": 0xD,
 }
-# 風向左右: which of the eight fixed positions the remote offers depends on its
-# 部屋形状設定, so all of them are exposed.
+# Horizontal airflow direction (louvres): which of the eight fixed positions the
+# remote offers depends on its room-shape setting, so all of them are exposed.
 SWING_H: dict[str, int] = {
     "off": 0x00,
     "auto": 0x1E,
@@ -133,8 +137,8 @@ SWING_H: dict[str, int] = {
     "right": 0x0D,
     "right_max": 0x0E,
 }
-# センサー風向: 切 / エリア送風 / スポット送風, in raw[36] bits 0-2. エリア is
-# bits 0+1, スポット is bit 2 (the header's `Econo`). Both drive the vanes to 自動.
+# Sensor airflow: off / area / spot, in raw[36] bits 0-2. Area is bits 0+1, spot
+# is bit 2 (the header's `Econo`). Both drive the flaps and louvres to auto.
 SENSOR_AIRFLOW: dict[str, int] = {"off": 0x0, "area": 0x3, "spot": 0x4}
 BEEPS: dict[str, int] = {"normal": 0, "quiet": 1, "loud": 2, "off": 3}
 LIGHTS: dict[str, int] = {"bright": 1, "dim": 2, "off": 3}
@@ -145,25 +149,25 @@ EYE: dict[str, int] = {"off": 0, "1h": 1, "3h": 2}
 FRESH_AIR = ("off", "on", "high")
 
 # Humidity percentages the unit accepts, per mode (manual p.13). Lowering the
-# humidity in 冷房 is what puts the unit into 除湿冷房. The header also lists
-# 40/45/50 for 暖房, which belongs to the humidifying (うるる) models — this one
-# says 「湿度は変えられません」 in heat, so it is not offered.
+# humidity in cool is what puts the unit into dehumidifying cool. The header also
+# lists 40/45/50 for heat, which belongs to the humidifying models — this one
+# says humidity is not adjustable in heat, so it is not offered.
 HUMIDITY_PERCENTS = (50, 55, 60)
 HUMIDITY_STEPS: dict[str, tuple[int, ...]] = {
     MODE_COOL: HUMIDITY_PERCENTS,
     MODE_DRY: HUMIDITY_PERCENTS,
 }
-HUMIDITY_AUTO = 0xFF  # 連続: keep dehumidifying
+HUMIDITY_AUTO = 0xFF  # continuous: keep dehumidifying
 # The set points are options in their own right rather than a separate "manual"
 # option plus a slider: the unit only speaks the mode aloud when the humidity
 # setting changes in the same frame, so the select has to carry the value.
 HUMIDITY_MODES = ("off", "continuous", *(str(p) for p in HUMIDITY_PERCENTS))
 HUMIDITY_OFF = 0x00
-# In 快適自動 the remote parks a non-percentage value here.
+# In comfort-auto mode the remote parks a non-percentage value here.
 HUMIDITY_COMFORT = 0x80
 
-# Settable temperature per mode (manual p.13). 除湿 and ストリーマ空気清浄 have no
-# setting of their own; the byte still has to carry something sane.
+# Settable temperature per mode (manual p.13). Dry and streamer air purifying
+# have no setting of their own; the byte still has to carry something sane.
 TEMP_RANGES: dict[str, tuple[float, float]] = {
     MODE_COOL: (18.0, 32.0),
     MODE_HEAT: (14.0, 30.0),
@@ -173,9 +177,9 @@ MAX_TEMP = 32.0
 TEMP_STEP = 0.5
 # raw[26] bit 6, always sent with HumidOn (bit 7) — together they mark the byte
 # as "no absolute set point". The low bits then mean nothing (dry) or carry the
-# 快適自動 offset, so a frame with this marker never states a temperature.
+# comfort-auto offset, so a frame with this marker never states a temperature.
 TEMP_NONE = 0x40
-# Largest 快適自動 offset seen from the remote (0xD6 == -5.0 °C).
+# Largest comfort-auto offset seen from the remote (0xD6 == -5.0 °C).
 MAX_AUTO_OFFSET = 5.0
 
 UNUSED_TIME = 0x600  # what the remote parks in On/OffTime when disabled
@@ -225,7 +229,7 @@ _ANNOUNCE_PRIORITY: tuple[tuple[str, int], ...] = (
     ("humidity", A_HUMIDITY),
     ("humidity_mode", A_HUMIDITY),
     ("fan", A_FAN),
-    ("sensor_airflow", A_SWING_SENSOR),  # センサー風向; ahead of the vane axes it forces
+    ("sensor_airflow", A_SWING_SENSOR),  # sensor airflow; ahead of the flap/louvre axes
     ("swing_v", -2),  # circulate/breeze announce differently
     ("swing_h", -2),
     ("powerful", A_POWERFUL),
@@ -250,7 +254,7 @@ _RESET = bytes(
     [
         0x11, 0xDA, 0x27, 0x00, 0x02,  # 0-4   fixed preamble
         0x58, 0x64,                    # 5-6   CurrentTime + Power2
-        0x00,                          # 7     留守エコ timer
+        0x00,                          # 7     auto-off timer
         0x20,                          # 8     bit5 always set by the remote
         0x00,                          # 9     announce item
         0x00, 0x00,                    # 10-11
@@ -266,7 +270,7 @@ _RESET = bytes(
         0x00, 0x06, 0x60,              # 30-32 on/off timer times (disabled)
         0x00,                          # 33    powerful/quiet
         0x00, 0xC5,                    # 34-35 announce enable
-        0x00,                          # 36    センサー風向 / purify
+        0x00,                          # 36    sensor airflow / purify
         0x08,                          # 37
         0x00,                          # 38    checksum #2
     ]
@@ -280,37 +284,37 @@ class Daikin312Raw(RawState):
 
     CurrentTime   = Field(5, 0, 12)   # clock, minutes past midnight
     Power2        = Field(6, 7)       # inverse of Power
-    EyeTimer      = Field(7, 6, 2)    # 留守エコ: 0 off / 1 1hr / 2 3hr
+    EyeTimer      = Field(7, 6, 2)    # auto off: 0 off / 1 1hr / 2 3hr
     FreshAir      = Field(8, 0)       # fresh-air ventilation on; unverified
-    Mold          = Field(8, 3)       # 内部クリーン
-    HeatHigh      = Field(8, 4)       # 高温風
+    Mold          = Field(8, 3)       # mold proof
+    HeatHigh      = Field(8, 4)       # high-temperature airflow
     FreshAirHigh  = Field(8, 7)       # fresh-air ventilation, stronger; unverified
     AnnounceItem  = Field(9, 0, 8)    # A_* announce id
     Light         = Field(12, 0, 2)   # LIGHTS index
     Beep          = Field(12, 2, 2)   # BEEPS index
     SwingV        = Field(12, 4, 4)   # SWING_V index
     SwingH        = Field(13, 0, 8)   # SWING_H index
-    Streamer      = Field(14, 4)      # ストリーマ空清 (header: Clean)
-    FilterClean   = Field(14, 7)      # フィルター掃除 (absent from header)
+    Streamer      = Field(14, 4)      # streamer air purifying (header: Clean)
+    FilterClean   = Field(14, 7)      # cleaning filter (absent from header)
     Sum1          = Field(19, 0, 8)   # section 1 checksum
     Power         = Field(25, 0)      # main power
     OnTimer       = Field(25, 1)      # on-timer enabled
     OffTimer      = Field(25, 2)      # off-timer enabled
     Mode          = Field(25, 4, 3)   # MODES index
-    Temp          = Field(26, 0, 7)   # target temp, or 快適自動 offset
+    Temp          = Field(26, 0, 7)   # target temp, or comfort-auto offset
     HumidOn       = Field(26, 7)      # humidity mode enabled
     Humidity      = Field(27, 0, 8)   # target humidity %, see HUMIDITY_*
     Fan           = Field(28, 4, 4)   # FANS index
     OnTime        = Field(30, 0, 12)  # on-timer time, minutes past midnight
     OffTime       = Field(31, 4, 12)  # off-timer time, minutes past midnight
-    Powerful      = Field(33, 0)      # パワフル
-    Sleep         = Field(33, 2)      # おやすみ; confirmed by capture, not in the header
-    Quiet         = Field(33, 5)      # unverified (makes outdoor unit quiet; intl only feature)
+    Powerful      = Field(33, 0)      # powerful
+    Sleep         = Field(33, 2)      # comfort sleep; capture-confirmed, not in header
+    Quiet         = Field(33, 5)      # unverified; makes outdoor unit quiet; intl-only
     Announce      = Field(34, 3)      # enable bit, gates AnnounceItem
-    SensorAirflow = Field(36, 0, 3)  # センサー風向: 0 切 / 3 エリア / 4 スポット (header: bit2 Econo)
+    SensorAirflow = Field(36, 0, 3)  # sensor airflow: off/area/spot; hdr bit2=Econo
     Purify        = Field(36, 4)      # unverified
-    ComfortSleep  = Field(36, 5)      # on_timer_mode == comfort_sleep; unverified intl feature,
-                                      # never observed set on this JP unit
+    ComfortSleep  = Field(36, 5)      # on_timer_mode == comfort_sleep; unverified intl
+                                      # feature, never observed on this JP-market unit
     Sum2          = Field(38, 0, 8)   # section 2 checksum
 
     def __init__(self, raw: bytes | bytearray | None = None) -> None:
@@ -349,26 +353,26 @@ class Daikin312State:
     power: bool = False
     mode: str = MODE_COOL
     temp: float = 26.0
-    auto_offset: float = 0.0  # 快適自動 only
+    auto_offset: float = 0.0  # comfort-auto mode only
     fan: str = "auto"
     swing_v: str = "auto"
     swing_h: str = "auto"
-    sensor_airflow: str = "off"  # センサー風向: off | area (エリア) | spot (スポット)
-    humidity_mode: str = "off"  # 切 | 連続 | 指定%
+    sensor_airflow: str = "off"  # sensor airflow: off | area | spot
+    humidity_mode: str = "off"  # off | continuous | specified %
     humidity: int = 50
-    heat_high: bool = False  # 高温風
-    powerful: bool = False  # パワフル
-    quiet: bool = False  # 室外ユニット静音; unverified, see README
-    streamer: bool = False  # ストリーマ空清
-    filter_clean: bool = False  # フィルター掃除
-    eye: str = "off"  # 留守エコ: off | 1h | 3h
-    mold: bool = False  # 内部クリーン; unverified
+    heat_high: bool = False  # high-temperature airflow
+    powerful: bool = False  # powerful
+    quiet: bool = False  # outdoor unit quiet; unverified, see README
+    streamer: bool = False  # streamer air purifying
+    filter_clean: bool = False  # cleaning filter
+    eye: str = "off"  # auto off: off | 1h | 3h
+    mold: bool = False  # mold proof; unverified
     purify: bool = False  # unverified; not in menu, see Control list comment
     fresh_air: str = "off"  # ventilation: off | on | high; unverified, S40WTRXP-W only
     beep: str = "quiet"
     light: str = "bright"
     announce_enabled: bool = True
-    sleep: bool = False  # おやすみ; confirmed by capture
+    sleep: bool = False  # comfort sleep; confirmed by capture
     on_timer_mode: str = "none"  # none | on_timer | comfort_sleep (they share one slot)
     on_timer: int = 0  # minutes past midnight
     off_timer_enabled: bool = False
@@ -385,7 +389,7 @@ class Daikin312Protocol(Protocol):
     label = "Daikin 312-bit"
     freq = FREQ
 
-    # 快適自動 is the unit's only automatic mode; HA offers two names for it.
+    # Comfort Auto is the unit's only automatic mode; HA offers two names for it.
     mode_aliases = {MODE_HEAT_COOL: MODE_AUTO}
 
     capabilities = Capabilities(
@@ -463,8 +467,8 @@ class Daikin312Protocol(Protocol):
             icon="mdi:volume-low",
         ),
         # purify (raw[36] bit4) dropped from the menu: no button or menu item
-        # named 空気清浄/purify in the S40WTRXP-W, S40TTAXP-W, or FTXZ-N manuals
-        # beyond ストリーマ空気清浄 (already `streamer`, raw[14] bit4). No known
+        # named "air purifying" in the S40WTRXP-W, S40TTAXP-W, or FTXZ-N manuals
+        # beyond streamer air purifying (already `streamer`, raw[14] bit4). No known
         # trigger to capture. State field kept below so we can still decode/send
         # it if a future capture ever turns up a real source for the bit.
         Control(
@@ -605,10 +609,11 @@ class Daikin312Protocol(Protocol):
         if powerful and quiet:
             quiet = "quiet" not in changed
 
-        # センサー風向 (エリア/スポット) drives both vanes to 自動; conversely,
-        # picking a vane position directly cancels it — the way the remote's
-        # buttons interact. The vane→off half is inferred from that behaviour,
-        # not from a capture of a vane button pressed while エリア/スポット is on.
+        # Sensor airflow (area/spot) drives the flaps and louvres to auto;
+        # conversely, picking a flap or louvre position directly cancels it — the
+        # way the remote's buttons interact. The flap/louvre→off half is inferred
+        # from that behaviour, not from a capture of a flap or louvre button
+        # pressed while area/spot is on.
         sensor_airflow, swing_v, swing_h = (
             new.sensor_airflow, new.swing_v, new.swing_h
         )
@@ -664,9 +669,10 @@ class Daikin312Protocol(Protocol):
                     return A_HEAT_HIGH
                 return _MODE_ANNOUNCE.get(state.mode)
             if item == -2:  # swing
-                # Setting a vane axis to 自動 by itself is a plain swing change,
-                # never the センサー風向 feature — that has its own select above,
-                # and apply() turns it off when a vane axis is picked directly.
+                # Setting a flap or louvre axis to auto by itself is a plain swing
+                # change, never the sensor-airflow feature — that has its own
+                # select above, and apply() turns it off when a flap or louvre
+                # axis is picked directly.
                 value = state.swing_v if key == "swing_v" else state.swing_h
                 if value in ("breeze", "circulate"):
                     return A_CIRCULATION
@@ -692,12 +698,12 @@ class Daikin312Protocol(Protocol):
         f.SwingH = SWING_H[state.swing_h]
         f.SensorAirflow = SENSOR_AIRFLOW[state.sensor_airflow]
         if state.sensor_airflow != "off":
-            # エリア/スポット always ride with both vanes on 自動 (captures).
+            # Area/spot always ride with the flaps and louvres on auto (captures).
             f.SwingV = SWING_V["auto"]
             f.SwingH = SWING_H["auto"]
 
         if state.mode == MODE_AUTO:
-            # 快適自動: the temperature byte carries a signed half-degree offset.
+            # Comfort Auto: the temperature byte carries a signed half-degree offset.
             f.Temp = TEMP_NONE | (int(state.auto_offset * 2) & 0x1F)
             f.HumidOn = 1
             f.Humidity = HUMIDITY_COMFORT
