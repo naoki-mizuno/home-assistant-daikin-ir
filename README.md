@@ -5,7 +5,8 @@
 # Daikin IR
 
 Home Assistant integration for Daikin air conditioners driven over infrared,
-through supported MQTT-connected IR blaster.
+through a supported MQTT-connected IR blaster or a Home Assistant infrared
+emitter entity.
 
 It is meant to replace SmartIR's Daikin climate: instead of replaying a fixed
 list of learned codes, it builds each frame from the protocol, so everything the
@@ -35,8 +36,15 @@ would be a guess, and a guess in the history graph is worse than nothing.
 ## Requirements
 
 - Home Assistant 2025.3 or newer (for `swing_horizontal_modes`).
-- The MQTT integration, and an IR blaster that accepts codes over MQTT —
-  a Zigbee2MQTT Tuya IR blaster, a Broadlink bridge, or anything similar.
+- An IR blaster, reached either:
+  - **a blaster that accepts codes over MQTT**, needing the MQTT integration
+    and one of the code formats below.
+  - **a Home Assistant infrared emitter** (`infrared.*` entity), which needs
+    Home Assistant 2026.4 or newer. ESPHome, Broadlink and SMLIGHT provide one;
+    so does Zigbee2MQTT 2.13.0 for Tuya blasters, over the MQTT infrared
+    platform added in Home Assistant 2026.7. A more HA-native way, but it may
+    not work depending on your blaster. Recommendation is to use MQTT if your
+    blaster is set up that way.
 
 ## Installation
 
@@ -46,15 +54,16 @@ _Integration_, then install and restart Home Assistant. Or copy
 
 Then _Settings → Devices & services → Add integration → Daikin IR_.
 
-| Setting           | Meaning                                                                                                          |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Protocol          | Match your remote. Currently Daikin 312-bit (ARC472A43).                                                         |
-| Output format     | What your blaster accepts: Tuya/Zigbee2MQTT or Broadlink base64.                                                 |
-| MQTT topic        | Where the code is published, e.g. `zigbee2mqtt/UFO-R11/set`.                                                     |
-| Payload key       | JSON key the code goes under. Empty uses the format's default (`ir_code_to_send` for Tuya, `b64` for Broadlink). |
-| Send delay        | Window for coalescing multiple (burst of) commands. Empty uses 0.1 s, 0 sends every change on its own.           |
-| Temp / hum sensor | Shown as the current temperature and humidity.                                                                   |
-| Power sensor      | Corrects the assumed power state when something else turns the unit off.                                         |
+| Setting           | Meaning                                                                                                |
+| ----------------- | ------------------------------------------------------------------------------------------------------ |
+| Protocol          | Match your remote. Currently Daikin 312-bit (ARC472A43).                                               |
+| Output format     | What your blaster accepts: Tuya, Broadlink base64, or a HA infrared entity.                            |
+| MQTT topic        | Where the code is published, e.g. `zigbee2mqtt/UFO-R11/set`.                                           |
+| Payload key       | JSON key the code goes under. Empty uses the format's default (`ir_code_to_send`).                     |
+| Infrared emitter  | Which `infrared.*` entity transmits.                                                                   |
+| Send delay        | Window for coalescing multiple (burst of) commands. Empty uses 0.1 s, 0 sends every change on its own. |
+| Temp / hum sensor | Shown as the current temperature and humidity.                                                         |
+| Power sensor      | Corrects the assumed power state when something else turns the unit off.                               |
 
 All of them can be changed later from the entry's _Configure_ dialog.
 
@@ -75,7 +84,11 @@ If you can confirm one works (or does nothing), please open an issue.
 Developed against an S40TTAXP-W with an ARC472A43 remote. Other Daikin models
 that use the same 312-bit protocol should work.
 
-IR blasters: Tuya UFO-R11, Tuya UFO-R4Z (both tuya format), and HOBEIAN ZG-IR01 (broadlink b64)
+IR blasters: Tuya UFO-R11, Tuya UFO-R4Z (both tuya format), and HOBEIAN ZG-IR01
+(broadlink b64) over MQTT.
+
+A Home Assistant infrared emitter should work too, since the frame goes out as
+raw timings and the emitter deals with its own hardware's format if supported.
 
 ## Adding a protocol or an output format
 

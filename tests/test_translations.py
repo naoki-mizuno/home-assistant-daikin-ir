@@ -34,6 +34,25 @@ def test_no_language_is_missing_keys(language):
 
 
 @pytest.mark.parametrize("language", sorted(LANGUAGES))
+def test_form_sections_own_their_fields(language):
+    """A field lives in exactly one place: the step, or one of its sections.
+
+    Moving a field into a section and leaving its old label behind still looks
+    right in the diff, but Home Assistant then renders the field untranslated
+    (it looks up the label under the section) while the stale one goes unused.
+    """
+    for flow in ("config", "options"):
+        for step in LANGUAGES[language][flow]["step"].values():
+            sections = step.get("sections", {})
+            assert sections, flow
+            seen = set(step["data"])
+            for name, fields in sections.items():
+                assert fields["name"] and fields["data"], name
+                assert not seen & set(fields["data"]), name
+                seen |= set(fields["data"])
+
+
+@pytest.mark.parametrize("language", sorted(LANGUAGES))
 def test_every_control_is_named(language):
     entity = LANGUAGES[language]["entity"]
     for control in d.PROTOCOL.controls:

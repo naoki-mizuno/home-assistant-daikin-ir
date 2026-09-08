@@ -8,8 +8,6 @@
           "name": "名前",
           "protocol": "プロトコル",
           "codec": "出力フォーマット",
-          "mqtt_topic": "MQTTトピック",
-          "payload_key": "ペイロードキー",
           "send_delay": "最小送信間隔",
           "temperature_sensor": "温度センサ",
           "humidity_sensor": "湿度センサ",
@@ -17,15 +15,41 @@
         },
         "data_description": {
           "protocol": "お使いのリモコンに合わせて選んでください。",
-          "codec": "IRブラスタが受け付けるコード形式です。",
-          "mqtt_topic": "赤外線コードの送信先。例: zigbee2mqtt/寝室のIRブラスタ/set",
-          "payload_key": "コードを入れるJSONのキー。空欄の場合出力フォーマットの既定値を使います。",
+          "codec": "IRブラスタが受け付けるコード形式です。Home Assistantが標準で扱えるIRブラスタに送る場合は「Home Assistantの赤外線エンティティ」を選んでください。",
           "send_delay": "指令受け付け後、この時間だけ待ってから送信します。IRブラスタの取りこぼしを防ぐために、連続した指令が1つの赤外線信号にまとめます。空欄の場合0.1秒ですが、それでも取りこぼす場合は長くしてください。指令ごとに送信したい場合は0にしてください。",
           "temperature_sensor": "室温として表示します。",
           "humidity_sensor": "湿度として表示します。",
           "power_sensor": "リモコン等で停止されたことを検知するために使います。"
+        },
+        "sections": {
+          "mqtt": {
+            "name": "MQTT",
+            "description": "MQTTトピック経由でブラスタに送信する場合に設定します。",
+            "data": {
+              "mqtt_topic": "MQTTトピック",
+              "payload_key": "ペイロードキー"
+            },
+            "data_description": {
+              "mqtt_topic": "赤外線コードの送信先。例: zigbee2mqtt/寝室のIRブラスタ/set",
+              "payload_key": "コードを入れるJSONのキー。空欄の場合出力フォーマットの既定値を使います。"
+            }
+          },
+          "infrared": {
+            "name": "Home Assistantの赤外線",
+            "description": "「Home Assistantの赤外線エンティティ」を使う場合に設定します。",
+            "data": {
+              "infrared_entity": "赤外線"
+            },
+            "data_description": {
+              "infrared_entity": "赤外線信号を送信する赤外線エンティティ。空欄の場合、赤外線エンティティが登録されていないため、先にIRブラスタを設定してください。"
+            }
+          }
         }
       }
+    },
+    "error": {
+      "mqtt_topic_required": "この出力フォーマットはMQTTで送信するため、トピックが必要です。",
+      "infrared_entity_required": "この出力フォーマットは赤外線エンティティ経由で送信するため、エンティティの指定が必要です。"
     }
   },
   "options": {
@@ -35,20 +59,45 @@
         "data": {
           "protocol": "プロトコル",
           "codec": "出力フォーマット",
-          "mqtt_topic": "MQTTトピック",
-          "payload_key": "ペイロードキー",
           "send_delay": "最小送信間隔",
           "temperature_sensor": "温度センサ",
           "humidity_sensor": "湿度センサ",
           "power_sensor": "電源センサ"
         },
         "data_description": {
-          "mqtt_topic": "赤外線コードの送信先。例: zigbee2mqtt/寝室のIRブラスタ/set",
-          "payload_key": "コードを入れるJSONのキー。空欄の場合出力フォーマットの既定値を使います。",
+          "codec": "IRブラスタが受け付けるコード形式です。Home Assistantが標準で扱えるIRブラスタに送る場合は「Home Assistantの赤外線エンティティ」を選んでください。",
           "send_delay": "指令受け付け後、この時間だけ待ってから送信します。IRブラスタの取りこぼしを防ぐために、連続した指令が1つの赤外線信号にまとめます。空欄の場合0.1秒ですが、それでも取りこぼす場合は長くしてください。指令ごとに送信したい場合は0にしてください。",
           "power_sensor": "リモコン等で停止されたことを検知するために使います。"
+        },
+        "sections": {
+          "mqtt": {
+            "name": "MQTT",
+            "description": "MQTTトピック経由でブラスタに送信する場合に設定します。",
+            "data": {
+              "mqtt_topic": "MQTTトピック",
+              "payload_key": "ペイロードキー"
+            },
+            "data_description": {
+              "mqtt_topic": "赤外線コードの送信先。例: zigbee2mqtt/寝室のIRブラスタ/set",
+              "payload_key": "コードを入れるJSONのキー。空欄の場合出力フォーマットの既定値を使います。"
+            }
+          },
+          "infrared": {
+            "name": "Home Assistantの赤外線",
+            "description": "「Home Assistantの赤外線エンティティ」を使う場合に設定します。",
+            "data": {
+              "infrared_entity": "赤外線"
+            },
+            "data_description": {
+              "infrared_entity": "赤外線信号を送信する赤外線エンティティ。空欄の場合、赤外線エンティティが登録されていないため、先にIRブラスタを設定してください。"
+            }
+          }
         }
       }
+    },
+    "error": {
+      "mqtt_topic_required": "この出力フォーマットはMQTTで送信するため、トピックが必要です。",
+      "infrared_entity_required": "この出力フォーマットは赤外線エンティティ経由で送信するため、エンティティの指定が必要です。"
     }
   },
   "entity": {
