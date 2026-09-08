@@ -75,9 +75,10 @@ two field values:
   39-byte two-section state frame — `11 DA 27 00 84 <cmd> 00 <sum>`, `<cmd>` =
   0x0C (mold proof) or 0x14 (filter clean), `<sum>` = sum of the first 7
   bytes & 0xFF. Byte4 (0x84) marks it as this short one-shot form; a normal
-  frame's section 1 has 0x02 there. Not decodable as `Daikin312Raw`, and
-  nothing here sends it yet — worth a dedicated one-shot action (e.g. a
-  `button` entity) rather than forcing it through `Daikin312State`.
+  frame's section 1 has 0x02 there. Not decodable as `Daikin312Raw`, so it is
+  built and sent separately (`press()` below) as its own `button` entity
+  (`mold_once`/`filter_clean_once`) rather than forced through
+  `Daikin312State`.
 * Running, filter clean: a normal 39-byte frame, AnnounceItem=A_FILTER=0x17,
   FilterClean (raw[14] bit7) cleared — matching the existing "filter_clean
   off" capture bit for bit. Confirms FilterClean/A_FILTER *is* auto filter
@@ -102,6 +103,7 @@ from typing import Any
 
 from .bitfield import Field, RawState
 from .protocol import (
+    BUTTON,
     MODE_AUTO,
     MODE_COOL,
     MODE_DRY,
@@ -382,14 +384,39 @@ class Daikin312Raw(RawState):
 
     def timings(self) -> list[int]:
         """Render the frame as raw µs durations: leader, then two LSB-first sections."""
-        out = [LEADER_MARK, LEADER_SPACE]
-        for section in (self.raw[:SECTION1_LENGTH], self.raw[SECTION1_LENGTH:]):
-            out += [HDR_MARK, HDR_SPACE]
-            for byte in section:
-                for bit in range(8):
-                    out += [BIT_MARK, ONE_SPACE if byte >> bit & 1 else ZERO_SPACE]
-            out += [BIT_MARK, SECTION_GAP]
-        return out
+        return _render(self.raw[:SECTION1_LENGTH], self.raw[SECTION1_LENGTH:])
+
+
+def _render(*sections: bytes) -> list[int]:
+    """Leader mark/space, then each section as header + LSB-first bits + gap.
+
+    Shared by the normal two-section state frame and the short one-shot frame
+    below — same remote, same bit timings, just a different number of sections.
+    """
+    out = [LEADER_MARK, LEADER_SPACE]
+    for section in sections:
+        out += [HDR_MARK, HDR_SPACE]
+        for byte in section:
+            for bit in range(8):
+                out += [BIT_MARK, ONE_SPACE if byte >> bit & 1 else ZERO_SPACE]
+        out += [BIT_MARK, SECTION_GAP]
+    return out
+
+
+# ── One-shot short frame (button held while the unit is stopped) ────────────
+# See the module docstring's "Stopped, either button" bullet. Not a
+# Daikin312Raw: it is 8 bytes, single-section, and carries no state to decode.
+
+CMD_MOLD_PROOF = 0x0C
+CMD_FILTER_CLEAN = 0x14
+_SHORT_HEADER = bytes([0x11, 0xDA, 0x27, 0x00, 0x84])
+
+
+def _short_frame(cmd: int) -> bytes:
+    """`_SHORT_HEADER` + cmd + 0x00, plus a sum-of-the-rest checksum byte."""
+    frame = bytearray((*_SHORT_HEADER, cmd, 0x00))
+    frame.append(sum(frame) & 0xFF)
+    return bytes(frame)
 
 
 # ── User-facing state ────────────────────────────────────────────────────────
@@ -509,6 +536,16 @@ class Daikin312Protocol(Protocol):
             "mold",
             SWITCH,
             icon="mdi:snowflake-melt",
+        ),
+        Control(
+            "mold_once",
+            BUTTON,
+            icon="mdi:snowflake-melt",
+        ),
+        Control(
+            "filter_clean_once",
+            BUTTON,
+            icon="mdi:broom",
         ),
         Control(
             "quiet",
@@ -808,6 +845,14 @@ class Daikin312Protocol(Protocol):
 
     def timings(self, state: Daikin312State) -> list[int]:
         return self.pack(state).timings()
+
+    _SHORT_COMMANDS = {
+        "mold_once": CMD_MOLD_PROOF,
+        "filter_clean_once": CMD_FILTER_CLEAN,
+    }
+
+    def press(self, key: str) -> list[int]:
+        return _render(_short_frame(self._SHORT_COMMANDS[key]))
 
 
 PROTOCOL = register(Daikin312Protocol())

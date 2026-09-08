@@ -175,6 +175,18 @@ class DaikinIrDevice:
     def get(self, key: str) -> Any:
         return getattr(self.state, key)
 
+    async def async_press(self, key: str) -> None:
+        """Immediately send an action frame. Used where the unit keeps no state
+        for the command, so there is nothing to debounce or persist
+        """
+
+        code = codecs.encode(
+            self.codec, self.protocol.press(key), self.protocol.freq
+        )
+        await mqtt.async_publish(
+            self.hass, self.topic, json.dumps({self.payload_key: code})
+        )
+
     # ── linked sensors ───────────────────────────────────────────────────────
 
     @callback

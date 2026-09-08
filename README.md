@@ -110,9 +110,11 @@ the English manuals for remotes that speak the same 312-bit protocol:
 | Powerful                            | パワフル                                 |
 | Flash Streamer air purifying        | ストリーマ空気清浄                       |
 | Auto filter clean                   | フィルター自動掃除                       |
+| Filter clean                        | フィルター掃除                           |
 | Sensor airflow — Area / Spot        | センサー風向 — エリア送風 / スポット送風 |
 | Auto off                            | 留守エコ                                 |
 | Auto mold proof                     | 自動内部クリーン                         |
+| Mold proof                          | 内部クリーン                             |
 | Outdoor unit quiet                  | 室外ユニット静音                         |
 | Air purifying                       | 空気清浄                                 |
 | Fresh air supply ventilation        | 換気                                     |
@@ -142,12 +144,12 @@ names being similar.
   the intake filter into a dust box, so you skip manual filter washing. Doesn't touch
   room air. Same physical button, held 2s, does two different things depending on
   whether the unit is running or stopped: running toggles this persisted auto setting
-  (what this integration exposes); stopped runs the cleaning cycle once, right now
-  (フィルター掃除, not yet exposed — see the module docstring in `daikin312.py`).
+  (Auto filter clean); stopped runs the cleaning cycle once, right now (フィルター掃除,
+  the Filter clean button — see the module docstring in `daikin312.py`).
 - 自動内部クリーン (Auto mold proof): after cool/dry, runs fan (sometimes low heat) to dry
   out the internal heat exchanger, stops mold growing inside the unit. Hygiene for the
   unit, not the room. Same button/running-vs-stopped split as auto filter clean above
-  (内部クリーン is the one-shot form, not yet exposed).
+  (内部クリーン is the one-shot form, the Mold proof button).
 - ストリーマ空気清浄 (Flash Streamer air purifying): Daikin's "Streamer" plasma discharge tech, decomposes
   odor/allergens/bacteria on the filter and exchanger. The premium active-purify
   feature.

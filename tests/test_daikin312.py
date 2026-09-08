@@ -106,6 +106,21 @@ def test_checksums_validate():
     assert frame.valid_checksum()
 
 
+# ── One-shot short frame (mold proof / filter clean, button while stopped) ──
+
+
+def test_short_frame_bytes():
+    # Hand-checksummed against the module docstring's byte layout.
+    assert d._short_frame(d.CMD_MOLD_PROOF).hex(" ").upper() == "11 DA 27 00 84 0C 00 A2"
+    assert (
+        d._short_frame(d.CMD_FILTER_CLEAN).hex(" ").upper() == "11 DA 27 00 84 14 00 AA"
+    )
+
+
+def test_press_renders_the_short_frame():
+    assert PROTOCOL.press("mold_once") == d._render(d._short_frame(d.CMD_MOLD_PROOF))
+
+
 # ── Real remote captures ─────────────────────────────────────────────────────
 
 

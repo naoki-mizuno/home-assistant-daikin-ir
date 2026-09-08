@@ -28,6 +28,7 @@ SWITCH = "switch"
 SELECT = "select"
 NUMBER = "number"
 TIME = "time"
+BUTTON = "button"
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -114,6 +115,13 @@ class Protocol(ABC):
         option disappears rather than being accepted and then clamped away.
         """
         return control.options
+
+    def press(self, key: str) -> list[int]:
+        """Raw µs timings for a one-shot, no-state Control (kind=BUTTON).
+
+        Only protocols that declare BUTTON controls need to override this.
+        """
+        raise NotImplementedError
 
     def to_dict(self, state: Any) -> dict[str, Any]:
         return dataclasses.asdict(state)

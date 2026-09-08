@@ -52,6 +52,10 @@
     }
   },
   "entity": {
+    "button": {
+      "mold_once": { "name": "Mold proof" },
+      "filter_clean_once": { "name": "Filter clean" }
+    },
     "climate": {
       "daikin_ir": {
         "state_attributes": {

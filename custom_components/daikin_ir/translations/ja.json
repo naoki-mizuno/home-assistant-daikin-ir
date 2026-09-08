@@ -52,6 +52,10 @@
     }
   },
   "entity": {
+    "button": {
+      "mold_once": { "name": "内部クリーン" },
+      "filter_clean_once": { "name": "フィルター掃除" }
+    },
     "climate": {
       "daikin_ir": {
         "state_attributes": {

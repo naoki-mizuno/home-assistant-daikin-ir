@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from .device import DaikinIrDevice
 
 PLATFORMS: list[Platform] = [
+    Platform.BUTTON,
     Platform.CLIMATE,
     Platform.NUMBER,
     Platform.SELECT,
