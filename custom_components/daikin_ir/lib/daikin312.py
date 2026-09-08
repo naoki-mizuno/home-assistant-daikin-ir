@@ -7,7 +7,10 @@ Where captures from a real ARC472A43 remote disagree with that header, the
 capture wins and the field carries a note. Confirmed by capture:
 
 * raw[14] bit4: streamer air purifying (the header calls this `Clean`/AirCleanMode).
-* raw[14] bit7: cleaning filter, absent from the header; announces as Filter.
+* raw[14] bit7: auto filter clean, absent from the header; announces as Filter.
+* raw[14] bit6: auto mold proof toggle, absent from the header. The header's
+  `Mold` (raw[8] bit3) never moves in any real capture, on/off pair included —
+  wrong bit for this remote.
 * raw[36] bits 0-2: sensor airflow mode — 0 off / 0b011 area / 0b100 spot
   The header calls bit2 `Econo`; captures of the "sensor auto" button
   (bits 0-1 set) vs "spot" (bit2 set) show this is a 3-state select,
@@ -53,10 +56,40 @@ those two captures differ in nothing but raw[36] bits 0-2. Which of the wrong
 bytes was the gate was not bisected further; `_RESET` now matches the remote on
 all of them, since a value the remote never sends is not one to defend.
 
-Still unidentified, and left as they are: raw[6] bit6 and raw[14] bit6, which the
-remote does vary but in patterns the captures do not explain, and raw[34] bit5,
-which is set in exactly the two off-timer captures and may be a second off-timer
+Still unidentified, and left as they are: raw[6] bit6, which the remote does
+vary but in patterns the captures do not explain, and raw[34] bit5, which is
+set in exactly the two off-timer captures and may be a second off-timer
 enable we do not send.
+
+Mold proof and filter clean (manual 3P420060-1C p.27-28) are each one
+physical button doing two different things depending on whether the unit is
+running or stopped when pressed: running toggles a persisted auto setting —
+auto mold proof (the header's `Mold`/"AUTO MOLD PROOF", same swirl icon) or
+auto filter clean ("AUTO CLEANING FILTER", absent from the header)
+respectively — while stopped runs that feature's cycle once, right now, with
+no persisted state. Captures of all six (stopped and running for both
+buttons, plus an on/off pair for auto mold proof) confirm this is more than
+two field values:
+
+* Stopped, either button: an 8-byte, single-section frame, not the normal
+  39-byte two-section state frame — `11 DA 27 00 84 <cmd> 00 <sum>`, `<cmd>` =
+  0x0C (mold proof) or 0x14 (filter clean), `<sum>` = sum of the first 7
+  bytes & 0xFF. Byte4 (0x84) marks it as this short one-shot form; a normal
+  frame's section 1 has 0x02 there. Not decodable as `Daikin312Raw`, and
+  nothing here sends it yet — worth a dedicated one-shot action (e.g. a
+  `button` entity) rather than forcing it through `Daikin312State`.
+* Running, filter clean: a normal 39-byte frame, AnnounceItem=A_FILTER=0x17,
+  FilterClean (raw[14] bit7) cleared — matching the existing "filter_clean
+  off" capture bit for bit. Confirms FilterClean/A_FILTER *is* auto filter
+  clean, not a plain "clean the filter" reminder as this file used to guess;
+  already wired to the `streamer`-neighbor `filter_clean` control and
+  `_ANNOUNCE_PRIORITY`, no change needed beyond the name.
+* Running, mold proof: a normal 39-byte frame, AnnounceItem=A_MOLD=0x18. An
+  on/off pair, both captured running, isolates the toggle to raw[14] bit6 —
+  set turns auto mold proof on, clear turns it off — nothing else
+  differs beyond the clock and the checksum. Rules out the header's `Mold`
+  (raw[8] bit3), which never moves in either capture. Wired to the `mold`
+  control and `_ANNOUNCE_PRIORITY` below.
 
 Ranges and option lists come from the S40TTAXP-W manual (3P420060-1C) where it
 is narrower than the header, since the header covers every Daikin312 model.
@@ -212,7 +245,8 @@ A_HUMIDITY = 0x13
 A_CIRCULATION = 0x14
 A_SWING_SENSOR = 0x15
 A_SWING_H = 0x16
-A_FILTER = 0x17
+A_FILTER = 0x17  # auto filter clean
+A_MOLD = 0x18  # auto mold proof
 A_POWERFUL = 0x19
 A_FAN_ONLY = 0x1A
 A_EYE = 0x24
@@ -245,6 +279,7 @@ _ANNOUNCE_PRIORITY: tuple[tuple[str, int], ...] = (
     ("powerful", A_POWERFUL),
     ("streamer", A_FAN_ONLY),
     ("filter_clean", A_FILTER),
+    ("mold", A_MOLD),
     ("eye", A_EYE),
     ("sleep", A_SLEEP),
     ("on_timer_mode", -3),
@@ -300,7 +335,6 @@ class Daikin312Raw(RawState):
     Power2        = Field(6, 7)       # inverse of Power
     EyeTimer      = Field(7, 6, 2)    # auto off: 0 off / 1 1hr / 2 3hr
     FreshAir      = Field(8, 0)       # fresh-air ventilation on; unverified
-    Mold          = Field(8, 3)       # mold proof
     HeatHigh      = Field(8, 4)       # high-temperature airflow
     FreshAirHigh  = Field(8, 7)       # fresh-air ventilation, stronger; unverified
     AnnounceItem  = Field(9, 0, 8)    # A_* announce id
@@ -309,7 +343,8 @@ class Daikin312Raw(RawState):
     SwingV        = Field(12, 4, 4)   # SWING_V index
     SwingH        = Field(13, 0, 8)   # SWING_H index
     Streamer      = Field(14, 4)      # streamer air purifying (header: Clean)
-    FilterClean   = Field(14, 7)      # cleaning filter (absent from header)
+    AutoMoldProof = Field(14, 6)      # auto mold proof toggle (header wrongly puts this at raw[8] bit3)
+    FilterClean   = Field(14, 7)      # auto filter clean (absent from header)
     Sum1          = Field(19, 0, 8)   # section 1 checksum
     Power         = Field(25, 0)      # main power
     OnTimer       = Field(25, 1)      # on-timer enabled
@@ -322,7 +357,7 @@ class Daikin312Raw(RawState):
     OnTime        = Field(30, 0, 12)  # on-timer time, minutes past midnight
     OffTime       = Field(31, 4, 12)  # off-timer time, minutes past midnight
     Powerful      = Field(33, 0)      # powerful
-    Sleep         = Field(33, 2)      # comfort sleep; capture-confirmed, not in header
+    Sleep         = Field(33, 2)      # comfort sleep; not in header
     Quiet         = Field(33, 5)      # unverified; makes outdoor unit quiet; intl-only
     Announce      = Field(34, 3)      # enable bit, gates AnnounceItem
     SensorAirflow = Field(36, 0, 3)  # sensor airflow: off/area/spot; hdr bit2=Econo
@@ -378,9 +413,9 @@ class Daikin312State:
     powerful: bool = False  # powerful
     quiet: bool = False  # outdoor unit quiet; unverified, see README
     streamer: bool = False  # streamer air purifying
-    filter_clean: bool = False  # cleaning filter
+    filter_clean: bool = False  # auto filter clean
     eye: str = "off"  # auto off: off | 1h | 3h
-    mold: bool = False  # mold proof; unverified
+    mold: bool = False  # auto mold proof
     purify: bool = False  # unverified; not in menu, see Control list comment
     fresh_air: str = "off"  # ventilation: off | on | high; unverified, S40WTRXP-W only
     beep: str = "quiet"
@@ -751,7 +786,7 @@ class Daikin312Protocol(Protocol):
         f.Streamer = state.streamer
         f.FilterClean = state.filter_clean
         f.EyeTimer = EYE[state.eye]
-        f.Mold = state.mold
+        f.AutoMoldProof = state.mold
         f.Purify = state.purify
         f.FreshAir = state.fresh_air != "off"
         f.FreshAirHigh = state.fresh_air == "high"

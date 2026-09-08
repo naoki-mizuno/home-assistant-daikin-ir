@@ -20,8 +20,8 @@ usually has its own blaster in its own room.
 - `climate` entity: power, mode, target temperature, target humidity, fan
   speed, vertical and horizontal swing.
 - Separate entities for everything else the remote has: Powerful, Flash Streamer
-  air purifying, Cleaning filter, High-temperature airflow, Sensor airflow
-  (area/spot), Auto off, Mold proof, the on/off/sleep timers, Display
+  air purifying, Auto filter clean, High-temperature airflow, Sensor airflow
+  (area/spot), Auto off, Auto mold proof, the on/off/sleep timers, Display
   brightness, Sound volume and Voice response ([Japanese terms](#japanese-terms)).
 - Optional temperature, humidity and power sensors.
 
@@ -59,7 +59,6 @@ All of them can be changed later from the entry's _Configure_ dialog.
 These bits are described by IRremoteESP8266's header but were never confirmed
 against a real remote capture, so they are exposed and labelled _(untested)_:
 
-- Mold proof
 - Outdoor unit quiet
 - Air purifying
 - Fresh air supply ventilation
@@ -110,10 +109,10 @@ the English manuals for remotes that speak the same 312-bit protocol:
 | ----------------------------------- | ---------------------------------------- |
 | Powerful                            | パワフル                                 |
 | Flash Streamer air purifying        | ストリーマ空気清浄                       |
-| Cleaning filter                     | フィルター掃除                           |
+| Auto filter clean                   | フィルター自動掃除                       |
 | Sensor airflow — Area / Spot        | センサー風向 — エリア送風 / スポット送風 |
 | Auto off                            | 留守エコ                                 |
-| Mold proof                          | 内部クリーン                             |
+| Auto mold proof                     | 自動内部クリーン                         |
 | Outdoor unit quiet                  | 室外ユニット静音                         |
 | Air purifying                       | 空気清浄                                 |
 | Fresh air supply ventilation        | 換気                                     |
@@ -139,12 +138,16 @@ and **Voice response** (音声応答).
 Below is a list of features that I personally found confusing due to their
 names being similar.
 
-- フィルター掃除 (Cleaning filter): mechanical. Little brush/vacuum sweeps dust off the
-  intake filter into a dust box, so you skip manual filter washing. Doesn't touch room
-  air.
-- 内部クリーン (Mold proof): after cool/dry, runs fan (sometimes low heat) to dry out the
-  internal heat exchanger, stops mold growing inside the unit. Hygiene for the unit, not
-  the room.
+- フィルター自動掃除 (Auto filter clean): mechanical. Little brush/vacuum sweeps dust off
+  the intake filter into a dust box, so you skip manual filter washing. Doesn't touch
+  room air. Same physical button, held 2s, does two different things depending on
+  whether the unit is running or stopped: running toggles this persisted auto setting
+  (what this integration exposes); stopped runs the cleaning cycle once, right now
+  (フィルター掃除, not yet exposed — see the module docstring in `daikin312.py`).
+- 自動内部クリーン (Auto mold proof): after cool/dry, runs fan (sometimes low heat) to dry
+  out the internal heat exchanger, stops mold growing inside the unit. Hygiene for the
+  unit, not the room. Same button/running-vs-stopped split as auto filter clean above
+  (内部クリーン is the one-shot form, not yet exposed).
 - ストリーマ空気清浄 (Flash Streamer air purifying): Daikin's "Streamer" plasma discharge tech, decomposes
   odor/allergens/bacteria on the filter and exchanger. The premium active-purify
   feature.

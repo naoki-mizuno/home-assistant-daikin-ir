@@ -64,6 +64,14 @@ def _esp_frame(state_overrides: dict) -> d.Daikin312Raw:
     frame = PROTOCOL.pack(dataclasses.replace(BASE, **state_overrides))
     for i, mask in REMOTE_CONSTANTS.items():
         frame.raw[i] ^= mask
+    if state_overrides.get("mold"):
+        # The header puts "mold proof" at raw[8] bit3; real captures (see the
+        # module docstring) prove that bit never moves and the real bit is
+        # raw[14] bit6 instead. Known, deliberate divergence — undo it here so
+        # the rest of a case (e.g. combo:fan_only) still proves against the
+        # C++ build.
+        frame.raw[8] ^= 0x08
+        frame.raw[14] ^= 0x40
     frame.checksum()
     return frame
 
@@ -126,6 +134,8 @@ def test_captures_have_valid_checksums():
         ("streamer off", "Streamer", 0),
         ("filter_clean on (0x17)", "FilterClean", 1),
         ("filter_clean off", "FilterClean", 0),
+        ("auto mold proof on, running (0x18)", "AutoMoldProof", 1),
+        ("auto mold proof off, running (0x18)", "AutoMoldProof", 0),
         ("sensor_airflow area", "SensorAirflow", d.SENSOR_AIRFLOW["area"]),
         ("sensor_airflow spot", "SensorAirflow", d.SENSOR_AIRFLOW["spot"]),
         ("sensor_airflow cancel", "SensorAirflow", 0),
