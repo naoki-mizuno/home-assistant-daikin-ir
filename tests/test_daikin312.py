@@ -40,19 +40,57 @@ BASE = d.Daikin312State(
 )
 
 
-def _frame(state_overrides: dict) -> str:
-    state = dataclasses.replace(BASE, **state_overrides)
-    return " ".join(f"{b:02X}" for b in PROTOCOL.pack(state).raw)
+# Bits where _RESET carries the real remote's constant instead of the one
+# IRDaikin312::stateReset() uses, so the C++ frames differ there by construction.
+# Masks rather than whole bytes, so the fields sharing those bytes are still
+# compared. test_reset_matches_the_remote() is what keeps this honest.
+REMOTE_CONSTANTS = {
+    6: 0x20,
+    10: 0x82,
+    11: 0x30,
+    14: 0x02,
+    15: 0x04,
+    17: 0x24,
+    34: 0x02,
+    35: 0x01,
+    36: 0x80,
+    37: 0x2C,
+}
+
+
+def _esp_frame(state_overrides: dict) -> d.Daikin312Raw:
+    """Pack, then put stateReset()'s constants back, so what is compared against
+    the C++ build is the field layout and not which remote _RESET was built from."""
+    frame = PROTOCOL.pack(dataclasses.replace(BASE, **state_overrides))
+    for i, mask in REMOTE_CONSTANTS.items():
+        frame.raw[i] ^= mask
+    frame.checksum()
+    return frame
 
 
 @pytest.mark.parametrize("case", IRREMOTEESP8266, ids=lambda c: c["label"])
 def test_matches_irremoteesp8266(case):
-    assert _frame(case["state"]) == " ".join(case["raw"])
+    got = " ".join(f"{b:02X}" for b in _esp_frame(case["state"]).raw)
+    assert got == " ".join(case["raw"])
 
 
 def test_timings_match_irremoteesp8266():
     baseline = next(c for c in IRREMOTEESP8266 if c["label"] == "baseline")
-    assert PROTOCOL.timings(BASE) == baseline["timings"]
+    assert _esp_frame({}).timings() == baseline["timings"]
+
+
+def test_reset_matches_the_remote():
+    """Every bit REMOTE_CONSTANTS claims is the remote's has to be exactly that.
+
+    The unit drops raw[36] whole when these are wrong, and says nothing about it,
+    so no other check here would notice _RESET drifting back to stateReset().
+    """
+    raws = [bytes(int(b, 16) for b in c["raw"]) for c in CAPTURES]
+    for i, mask in REMOTE_CONSTANTS.items():
+        for bit in (b for b in range(8) if mask >> b & 1):
+            seen = {r[i] >> bit & 1 for r in raws}
+            assert len(seen) == 1, f"raw[{i}] bit{bit} is not constant in captures"
+            assert seen == {d._RESET[i] >> bit & 1}, f"raw[{i}] bit{bit} disagrees"
 
 
 def test_checksums_validate():

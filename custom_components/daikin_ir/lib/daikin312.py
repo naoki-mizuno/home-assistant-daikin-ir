@@ -17,11 +17,9 @@ capture wins and the field carries a note. Confirmed by capture:
   remote, not that a real Econo flag hides nearby. Since ECONO and QUIET are
   International-only feature, help is needed to expose these features.
 * raw[36] bit7: set in every capture ever taken, in every mode, never cleared.
-  Treated as a constant the encoder need not reproduce: codes without it work,
-  a sensor-airflow press included. Sending our own unpatched frame by hand was
-  announced as spot, which also rules out bytes 10, 11, 15, 17, 34 bit1,
-  35 bit0 and 37 (all constant in every capture) and byte 6 bit5 (which we set
-  and no capture ever does) as things the unit requires.
+  Reproduced by `_RESET`, along with every other constant the remote holds fixed.
+  On its own it is not what the unit wants: frames sent by hand with bit7 set and
+  the other constants left as `stateReset()` has them were still ignored (below).
 * raw[7] bits6-7: auto-off ("AUTO OFF") duration: 0=off, 1=1hr, 2=3hr. No
   separate enable bit was ever observed, so this select *is* the feature's
   on/off. It is a different feature from ECONO.
@@ -43,10 +41,22 @@ along with a mode change is what decides it: arriving in fan-only mode with
 raw[14] bit4 set is heard as the streamer phrase. The remote's own fan-only
 press from off sends that bit clear.
 
-Still unidentified: raw[14] bits 1 and 6, which the remote sets in patterns the
-captures do not explain (bit 6 rides with every sensor-airflow press but not the
-older sensor-auto captures). Codes generated without them work, so they are left
-clear.
+`stateReset()`'s constants are not this remote's, and the unit does not ignore
+that. It holds bytes 10, 11, 15, 17, 35 and 37, plus raw[14] bit1, raw[34] bit1
+and raw[36] bit7, at values `stateReset()` disagrees with in all 30 captures, and
+never sets raw[6] bit5, which `stateReset()` does. A frame that gets those wrong
+is still accepted for temperature, mode, fan and the rest, but raw[36] is dropped
+whole: sending our own area and spot frames made the unit re-announce the sensor
+mode it was already in ("cancelled" after a cancel, "area" after an area press),
+while replaying a capture byte for byte announced area and spot correctly, and
+those two captures differ in nothing but raw[36] bits 0-2. Which of the wrong
+bytes was the gate was not bisected further; `_RESET` now matches the remote on
+all of them, since a value the remote never sends is not one to defend.
+
+Still unidentified, and left as they are: raw[6] bit6 and raw[14] bit6, which the
+remote does vary but in patterns the captures do not explain, and raw[34] bit5,
+which is set in exactly the two off-timer captures and may be a second off-timer
+enable we do not send.
 
 Ranges and option lists come from the S40TTAXP-W manual (3P420060-1C) where it
 is narrower than the header, since the header covers every Daikin312 model.
@@ -248,19 +258,23 @@ _ANNOUNCE_PRIORITY: tuple[tuple[str, int], ...] = (
 
 # ── Raw frame ────────────────────────────────────────────────────────────────
 
-# Byte template from IRDaikin312::stateReset(); every code generated from it has
-# been confirmed working on an S40TTAXP-W.
+# Byte template: IRDaikin312::stateReset() with every byte that a real ARC472A43
+# holds constant corrected to what the remote actually sends. stateReset() covers
+# the whole Daikin312 family, and its constants are not this remote's; the unit
+# quietly drops raw[36] when they are wrong (see the module docstring).
 _RESET = bytes(
     [
         0x11, 0xDA, 0x27, 0x00, 0x02,  # 0-4   fixed preamble
-        0x58, 0x64,                    # 5-6   CurrentTime + Power2
+        0x58, 0x44,                    # 5-6   CurrentTime + Power2; 6:5 cleared
         0x00,                          # 7     auto-off timer
         0x20,                          # 8     bit5 always set by the remote
         0x00,                          # 9     announce item
-        0x00, 0x00,                    # 10-11
+        0x82, 0x30,                    # 10-11 constant in every capture
         0x01,                          # 12    light/beep/swingv
         0x00,                          # 13    swingh
-        0x00, 0x00, 0x00, 0x00, 0x00,  # 14-18
+        0x02,                          # 14    bit1; streamer/filter ride on top
+        0x04, 0x00, 0x24,              # 15-17 15 and 17 constant, 16 unused
+        0x00,                          # 18
         0x00,                          # 19    checksum #1
         0x11, 0xDA, 0x27, 0x00, 0x00,  # 20-24 fixed preamble
         0x08,                          # 25    power/timers/mode
@@ -269,9 +283,9 @@ _RESET = bytes(
         0x00, 0x00,                    # 28-29 fan
         0x00, 0x06, 0x60,              # 30-32 on/off timer times (disabled)
         0x00,                          # 33    powerful/quiet
-        0x00, 0xC5,                    # 34-35 announce enable
-        0x00,                          # 36    sensor airflow / purify
-        0x08,                          # 37
+        0x02, 0xC4,                    # 34-35 34:1 + 35 constant, 34:3 announce
+        0x80,                          # 36    bit7; sensor airflow / purify below
+        0x24,                          # 37    constant in every capture
         0x00,                          # 38    checksum #2
     ]
 )
