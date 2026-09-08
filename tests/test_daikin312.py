@@ -184,6 +184,39 @@ def test_entering_cool_turns_humidity_control_off():
     assert PROTOCOL.apply(dry, {"mode": "cool"}).humidity_mode == "off"
 
 
+@pytest.mark.parametrize(
+    ("label", "temp", "humidity_mode"),
+    [
+        ("cool from off", 25.0, "off"),
+        ("dehumidified cooling: humidity 60 in cool", 25.0, "60"),
+        ("dehumidified cooling: temp 25.5", 25.5, "60"),
+    ],
+)
+def test_dehumidified_cooling_reproduces_the_remote(label, temp, humidity_mode):
+    """Picking a humidity in cool is not a mode of its own: the remote sends
+    *dry* carrying a real temperature, where plain dry sends the "no set point"
+    marker. Getting either half wrong makes the unit read 32C aloud."""
+    capture = _capture(label)
+    mine = PROTOCOL.pack(
+        dataclasses.replace(BASE, mode="cool", temp=temp, humidity_mode=humidity_mode)
+    )
+    assert (mine.Mode, mine.Temp, mine.HumidOn, mine.Humidity) == (
+        capture.Mode,
+        capture.Temp,
+        capture.HumidOn,
+        capture.Humidity,
+    )
+
+
+def test_plain_dry_states_no_temperature():
+    """Dry has no set point of its own, so the byte carries the marker, not a
+    temperature -- which is what tells the unit apart from dehumidified cooling."""
+    dry = dataclasses.replace(PROTOCOL.apply(BASE, {"mode": "dry"}), temp=24.0)
+    frame = PROTOCOL.pack(dry)
+    assert (frame.HumidOn, frame.Temp) == (1, d.TEMP_NONE)
+    assert frame.raw[26] == _capture("dry + humidity 50").raw[26]
+
+
 def test_dry_refuses_to_turn_humidity_control_off():
     """Off in dry makes the unit fall back to cool on its own, which would
     leave the assumed state claiming a mode the unit is no longer in."""

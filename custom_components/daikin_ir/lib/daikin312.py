@@ -171,6 +171,10 @@ TEMP_RANGES: dict[str, tuple[float, float]] = {
 DEFAULT_TEMP_RANGE = (18.0, 32.0)
 MAX_TEMP = 32.0
 TEMP_STEP = 0.5
+# raw[26] bit 6, always sent with HumidOn (bit 7) — together they mark the byte
+# as "no absolute set point". The low bits then mean nothing (dry) or carry the
+# 快適自動 offset, so a frame with this marker never states a temperature.
+TEMP_NONE = 0x40
 # Largest 快適自動 offset seen from the remote (0xD6 == -5.0 °C).
 MAX_AUTO_OFFSET = 5.0
 
@@ -694,7 +698,7 @@ class Daikin312Protocol(Protocol):
 
         if state.mode == MODE_AUTO:
             # 快適自動: the temperature byte carries a signed half-degree offset.
-            f.Temp = 0x40 | (int(state.auto_offset * 2) & 0x1F)
+            f.Temp = TEMP_NONE | (int(state.auto_offset * 2) & 0x1F)
             f.HumidOn = 1
             f.Humidity = HUMIDITY_COMFORT
         else:
@@ -705,11 +709,21 @@ class Daikin312Protocol(Protocol):
                 elif state.humidity_mode.isdigit():
                     humidity = int(state.humidity_mode)
             f.Humidity = humidity
-            f.HumidOn = humidity != HUMIDITY_OFF
-            # With humidification on, the unit pins the temperature to its max.
-            low, high = self.temp_range(state)
-            temp = MAX_TEMP if f.HumidOn else min(high, max(low, state.temp))
-            f.Temp = int(temp * 2)
+            if humidity != HUMIDITY_OFF and state.mode == MODE_DRY:
+                # Dry has no temperature of its own, so the remote sends the
+                # "no set point" marker instead of a value (captures "dry from
+                # off", "dry + humidity 50").
+                f.HumidOn, f.Temp = 1, TEMP_NONE
+            else:
+                low, high = self.temp_range(state)
+                f.Temp = int(min(high, max(low, state.temp)) * 2)
+                if humidity != HUMIDITY_OFF:
+                    # Dehumidified cooling is not a mode of its own: picking a
+                    # humidity in cool makes the remote send *dry* carrying a
+                    # real temperature, and that temperature is the only thing
+                    # telling the unit this is not plain dry (capture "cool ->
+                    # set humidity to 60%").
+                    f.Mode = MODES[MODE_DRY]
 
         f.HeatHigh = state.heat_high and state.mode == MODE_HEAT
         f.Powerful = state.powerful
