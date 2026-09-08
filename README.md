@@ -1,4 +1,6 @@
-<img src="brands/icon.png" width="96" align="center" alt="">
+<p align="center">
+  <img src="brands/icon.png" width="96" alt="">
+</p>
 
 # Daikin IR
 
