@@ -133,6 +133,17 @@ class Protocol(ABC):
         return dataclasses.replace(state, **wanted)
 
 
+def negate_spaces(timings: list[int]) -> list[int]:
+    """Mark the frame up the way Home Assistant's infrared platform reads it.
+
+    `timings()` returns unsigned mark/space pairs starting on a mark, but Home
+    Assistant's infrared platform reads a mark as positive and a space as
+    negative. A bare list cannot say which is which, so the sign is where the
+    two conventions are reconciled.
+    """
+    return [t if i % 2 == 0 else -t for i, t in enumerate(timings)]
+
+
 _PROTOCOLS: dict[str, Protocol] = {}
 
 

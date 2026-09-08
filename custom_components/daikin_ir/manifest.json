@@ -3,7 +3,7 @@
   "name": "Daikin IR",
   "codeowners": ["@naoki-mizuno"],
   "config_flow": true,
-  "dependencies": ["mqtt"],
+  "after_dependencies": ["infrared", "mqtt"],
   "documentation": "https://github.com/naoki-mizuno/home-assistant-daikin-ir",
   "integration_type": "device",
   "iot_class": "assumed_state",

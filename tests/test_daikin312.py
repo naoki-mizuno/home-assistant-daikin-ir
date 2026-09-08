@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from lib import daikin312 as d
+from lib.protocol import negate_spaces
 
 FIXTURES = Path(__file__).parent / "fixtures"
 IRREMOTEESP8266 = json.loads((FIXTURES / "daikin312_IRremoteESP8266.json").read_text())
@@ -494,3 +495,14 @@ def test_power_is_mirrored_in_both_bits():
 def test_state_survives_a_dict_round_trip():
     state = PROTOCOL.apply(BASE, {"mode": "heat", "temp": 23.5, "fan": "level_2"})
     assert PROTOCOL.from_dict(PROTOCOL.to_dict(state)) == state
+
+
+def test_negate_spaces_marks_the_frame_up_for_the_infrared_platform():
+    """Marks stay positive, spaces go negative, and nothing else moves."""
+    timings = PROTOCOL.timings(BASE)
+    marked = negate_spaces(timings)
+    assert [abs(t) for t in marked] == timings
+    assert marked[0] == d.LEADER_MARK
+    assert marked[1] == -d.LEADER_SPACE
+    assert all(t > 0 for t in marked[0::2])
+    assert all(t < 0 for t in marked[1::2])

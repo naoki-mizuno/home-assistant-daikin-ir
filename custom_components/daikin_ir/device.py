@@ -1,4 +1,4 @@
-"""One A/C unit: holds its assumed state and pushes IR codes to its blaster.
+"""One A/C unit: holds its assumed state and pushes IR frames to its blaster.
 
 IR is write-only, so this is the single source of truth for what the unit was
 last told. It is persisted, because losing it across a restart would leave the
@@ -24,8 +24,10 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CODEC_INFRARED,
     CONF_CODEC,
     CONF_HUMIDITY_SENSOR,
+    CONF_INFRARED_ENTITY,
     CONF_MQTT_TOPIC,
     CONF_PAYLOAD_KEY,
     CONF_POWER_SENSOR,
@@ -53,10 +55,13 @@ class DaikinIrDevice:
 
         self.protocol = get_protocol(config[CONF_PROTOCOL])
         self.codec: str = config[CONF_CODEC]
-        self.topic: str = config[CONF_MQTT_TOPIC]
-        self.payload_key: str = (
-            config.get(CONF_PAYLOAD_KEY) or codecs.DEFAULT_PAYLOAD_KEY[self.codec]
-        )
+        # Exactly one of these is set, whichever the codec implies; the config
+        # flow is what enforces that.
+        self.topic: str = config.get(CONF_MQTT_TOPIC) or ""
+        self.infrared_entity: str = config.get(CONF_INFRARED_ENTITY) or ""
+        self.payload_key: str = config.get(
+            CONF_PAYLOAD_KEY
+        ) or codecs.DEFAULT_PAYLOAD_KEY.get(self.codec, "")
         self._sensors = {
             key: config.get(key)
             for key in (
@@ -164,13 +169,29 @@ class DaikinIrDevice:
         unit was actually told about: a send dropped on shutdown takes its own
         state change down with it instead of leaving the UI claiming it landed.
         """
-        code = codecs.encode(
-            self.codec, self.protocol.timings(self.state), self.protocol.freq
-        )
-        await mqtt.async_publish(
-            self.hass, self.topic, json.dumps({self.payload_key: code})
-        )
+        await self._transmit(self.protocol.timings(self.state))
         await self._store.async_save(self.protocol.to_dict(self.state))
+
+    async def _transmit(self, timings: list[int]) -> None:
+        """Put one frame on the air, whichever output the codec selects."""
+        if self.codec == CODEC_INFRARED:
+            # Imported here, not at module scope: `infrared_protocols` only gets
+            # installed when the infrared integration is set up, so an MQTT-only
+            # install (or any Home Assistant before 2026.4) must never reach here.
+            from homeassistant.components import infrared
+
+            from .infrared_command import RawTimings
+
+            await infrared.async_send_command(
+                self.hass,
+                self.infrared_entity,
+                RawTimings(timings, self.protocol.freq),
+            )
+        else:
+            code = codecs.encode(self.codec, timings, self.protocol.freq)
+            await mqtt.async_publish(
+                self.hass, self.topic, json.dumps({self.payload_key: code})
+            )
 
     def get(self, key: str) -> Any:
         return getattr(self.state, key)
@@ -180,12 +201,7 @@ class DaikinIrDevice:
         for the command, so there is nothing to debounce or persist
         """
 
-        code = codecs.encode(
-            self.codec, self.protocol.press(key), self.protocol.freq
-        )
-        await mqtt.async_publish(
-            self.hass, self.topic, json.dumps({self.payload_key: code})
-        )
+        await self._transmit(self.protocol.press(key))
 
     # ── linked sensors ───────────────────────────────────────────────────────
 

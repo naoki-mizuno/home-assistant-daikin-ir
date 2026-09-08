@@ -7,6 +7,6 @@ reused by a CLI) on its own.
 from __future__ import annotations
 
 from . import daikin312  # noqa: F401 - imported for its side effect: registration
-from .protocol import get_protocol, protocol_labels
+from .protocol import get_protocol, negate_spaces, protocol_labels
 
-__all__ = ["get_protocol", "protocol_labels"]
+__all__ = ["get_protocol", "negate_spaces", "protocol_labels"]

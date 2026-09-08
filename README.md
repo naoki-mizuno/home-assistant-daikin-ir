@@ -85,7 +85,7 @@ Both are single files.
   subclasses `Protocol`, declares its `Capabilities` and `Control`s, and calls
   `register()`. The entities are built from that declaration, so no platform
   code changes.
-- An output format is a module under `lib/codecs/` with
+- An output format is a module under `lib/codecs/` (except for `infrared`) with
   `encode(timings, freq) -> str`, registered in `lib/codecs/__init__.py`.
 
 Nothing under `lib/` imports Home Assistant, so it can be tested (or reused
