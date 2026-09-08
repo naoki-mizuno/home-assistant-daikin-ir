@@ -48,6 +48,7 @@ Then _Settings → Devices & services → Add integration → Daikin IR_.
 | Output format     | What your blaster accepts: Tuya/Zigbee2MQTT or Broadlink base64.                                                 |
 | MQTT topic        | Where the code is published, e.g. `zigbee2mqtt/UFO-R11/set`.                                                     |
 | Payload key       | JSON key the code goes under. Empty uses the format's default (`ir_code_to_send` for Tuya, `b64` for Broadlink). |
+| Send delay        | Window for coalescing multiple (burst of) commands. Empty uses 0.1 s, 0 sends every change on its own.           |
 | Temp / hum sensor | Shown as the current temperature and humidity.                                                                   |
 | Power sensor      | Corrects the assumed power state when something else turns the unit off.                                         |
 

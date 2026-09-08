@@ -17,6 +17,7 @@ from homeassistant.components import mqtt
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_OFF, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.storage import Store
@@ -29,7 +30,9 @@ from .const import (
     CONF_PAYLOAD_KEY,
     CONF_POWER_SENSOR,
     CONF_PROTOCOL,
+    CONF_SEND_DELAY,
     CONF_TEMPERATURE_SENSOR,
+    DEFAULT_SEND_DELAY,
     DOMAIN,
     STORAGE_VERSION,
 )
@@ -69,11 +72,27 @@ class DaikinIrDevice:
 
         self._store: Store = Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}")
         self._listeners: list[Callable[[], None]] = []
+        # A script that sets multiple things at once would be multiple IR frames
+        # back to back, and the blaster may drop some (or all).
+        # Every frame carries the whole state, so sending just the last one once
+        # solves this issue.
+        # Unset means the default; 0 is the user asking for a frame per change,
+        # so this cannot be a falsy check.
+        delay = config.get(CONF_SEND_DELAY)
+        self._sender = Debouncer(
+            hass,
+            _LOGGER,
+            cooldown=DEFAULT_SEND_DELAY if delay is None else float(delay),
+            immediate=False,
+            function=self._send,
+        )
 
     # ── lifecycle ────────────────────────────────────────────────────────────
 
     async def async_setup(self) -> None:
         """Restore the last known state and start following the linked sensors."""
+        self.entry.async_on_unload(self._sender.async_shutdown)
+
         if stored := await self._store.async_load():
             try:
                 self.state = self.protocol.from_dict(stored)
@@ -122,16 +141,29 @@ class DaikinIrDevice:
     # ── commands ─────────────────────────────────────────────────────────────
 
     async def async_set(self, **changes: Any) -> None:
-        """Apply changes stamped with the current clock, then send and persist.
+        """Apply changes stamped with the current clock, then queue a send.
 
         The clock must be stamped in the same apply() call as the real change:
         apply() decides what to announce by diffing against the prior state, so
         a separate clock-only apply() afterwards would see no real change and
         reset the announcement back to disabled.
+
+        The entities update straight away; only the transmission is deferred, so
+        the UI stays responsive whatever the send delay is set to.
         """
         now: datetime = dt_util.now()
         changes = {**changes, "clock": now.hour * 60 + now.minute}
         self.state = self.protocol.apply(self.state, changes)
+        self._notify()
+        await self._sender.async_call()
+
+    async def _send(self) -> None:
+        """Transmit whatever the state has become, and persist that.
+
+        Persisting here rather than in async_set() keeps the store to states the
+        unit was actually told about: a send dropped on shutdown takes its own
+        state change down with it instead of leaving the UI claiming it landed.
+        """
         code = codecs.encode(
             self.codec, self.protocol.timings(self.state), self.protocol.freq
         )
@@ -139,7 +171,6 @@ class DaikinIrDevice:
             self.hass, self.topic, json.dumps({self.payload_key: code})
         )
         await self._store.async_save(self.protocol.to_dict(self.state))
-        self._notify()
 
     def get(self, key: str) -> Any:
         return getattr(self.state, key)

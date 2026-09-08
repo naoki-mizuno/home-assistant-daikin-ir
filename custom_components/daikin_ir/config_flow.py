@@ -22,6 +22,7 @@ from .const import (
     CONF_PAYLOAD_KEY,
     CONF_POWER_SENSOR,
     CONF_PROTOCOL,
+    CONF_SEND_DELAY,
     CONF_TEMPERATURE_SENSOR,
     DEFAULT_CODEC,
     DEFAULT_PROTOCOL,
@@ -69,6 +70,21 @@ def _schema(defaults: dict[str, Any], *, with_name: bool) -> vol.Schema:
                 CONF_PAYLOAD_KEY,
                 description={"suggested_value": defaults.get(CONF_PAYLOAD_KEY)},
             ): str,
+            # Blank means DEFAULT_SEND_DELAY, so an entry that never set one
+            # follows the default. To indicate "one frame per change," 0 must be
+            # explicitly set.
+            vol.Optional(
+                CONF_SEND_DELAY,
+                description={"suggested_value": defaults.get(CONF_SEND_DELAY)},
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0,
+                    max=5,
+                    step=0.05,
+                    unit_of_measurement="s",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
             vol.Optional(
                 CONF_TEMPERATURE_SENSOR,
                 description={"suggested_value": defaults.get(CONF_TEMPERATURE_SENSOR)},

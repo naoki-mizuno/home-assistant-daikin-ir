@@ -10,6 +10,7 @@
           "codec": "出力フォーマット",
           "mqtt_topic": "MQTTトピック",
           "payload_key": "ペイロードキー",
+          "send_delay": "最小送信間隔",
           "temperature_sensor": "温度センサ",
           "humidity_sensor": "湿度センサ",
           "power_sensor": "電源センサ"
@@ -19,6 +20,7 @@
           "codec": "IRブラスタが受け付けるコード形式です。",
           "mqtt_topic": "赤外線コードの送信先。例: zigbee2mqtt/寝室のIRブラスタ/set",
           "payload_key": "コードを入れるJSONのキー。空欄の場合出力フォーマットの既定値を使います。",
+          "send_delay": "指令受け付け後、この時間だけ待ってから送信します。IRブラスタの取りこぼしを防ぐために、連続した指令が1つの赤外線信号にまとめます。空欄の場合0.1秒ですが、それでも取りこぼす場合は長くしてください。指令ごとに送信したい場合は0にしてください。",
           "temperature_sensor": "室温として表示します。",
           "humidity_sensor": "湿度として表示します。",
           "power_sensor": "リモコン等で停止されたことを検知するために使います。"
@@ -35,6 +37,7 @@
           "codec": "出力フォーマット",
           "mqtt_topic": "MQTTトピック",
           "payload_key": "ペイロードキー",
+          "send_delay": "最小送信間隔",
           "temperature_sensor": "温度センサ",
           "humidity_sensor": "湿度センサ",
           "power_sensor": "電源センサ"
@@ -42,6 +45,7 @@
         "data_description": {
           "mqtt_topic": "赤外線コードの送信先。例: zigbee2mqtt/寝室のIRブラスタ/set",
           "payload_key": "コードを入れるJSONのキー。空欄の場合出力フォーマットの既定値を使います。",
+          "send_delay": "指令受け付け後、この時間だけ待ってから送信します。IRブラスタの取りこぼしを防ぐために、連続した指令が1つの赤外線信号にまとめます。空欄の場合0.1秒ですが、それでも取りこぼす場合は長くしてください。指令ごとに送信したい場合は0にしてください。",
           "power_sensor": "リモコン等で停止されたことを検知するために使います。"
         }
       }
@@ -136,7 +140,11 @@
       },
       "on_timer_mode": {
         "name": "入タイマーの種類",
-        "state": { "none": "なし", "on_timer": "入タイマー", "comfort_sleep": "快適おやすみタイマー" }
+        "state": {
+          "none": "なし",
+          "on_timer": "入タイマー",
+          "comfort_sleep": "快適おやすみタイマー"
+        }
       }
     },
     "switch": {

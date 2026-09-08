@@ -10,6 +10,7 @@
           "codec": "Output format",
           "mqtt_topic": "MQTT topic",
           "payload_key": "Payload key",
+          "send_delay": "Send delay",
           "temperature_sensor": "Temperature sensor",
           "humidity_sensor": "Humidity sensor",
           "power_sensor": "Power sensor"
@@ -19,6 +20,7 @@
           "codec": "The code format your IR blaster accepts.",
           "mqtt_topic": "Where the IR code is published, e.g. zigbee2mqtt/bedroom-blaster/set.",
           "payload_key": "JSON key the code is published under. Leave empty for the output format's default.",
+          "send_delay": "How long to wait after the last change before transmitting, so a burst of changes becomes one IR frame instead of several. Leave empty for 0.1 s, raise it if commands still get dropped, or set 0 to send every change on its own.",
           "temperature_sensor": "Shown as the current temperature.",
           "humidity_sensor": "Shown as the current humidity.",
           "power_sensor": "Tells the integration when the unit was turned off by something else."
@@ -35,6 +37,7 @@
           "codec": "Output format",
           "mqtt_topic": "MQTT topic",
           "payload_key": "Payload key",
+          "send_delay": "Send delay",
           "temperature_sensor": "Temperature sensor",
           "humidity_sensor": "Humidity sensor",
           "power_sensor": "Power sensor"
@@ -42,6 +45,7 @@
         "data_description": {
           "mqtt_topic": "Where the IR code is published, e.g. zigbee2mqtt/bedroom-blaster/set.",
           "payload_key": "JSON key the code is published under. Leave empty for the output format's default.",
+          "send_delay": "How long to wait after the last change before transmitting, so a burst of changes becomes one IR frame instead of several. Leave empty for 0.1 s, raise it if commands still get dropped, or set 0 to send every change on its own.",
           "power_sensor": "Tells the integration when the unit was turned off by something else."
         }
       }
