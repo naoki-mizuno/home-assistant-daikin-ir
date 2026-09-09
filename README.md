@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="brands/icon.png" width="96" alt="">
+  <img src="custom_components/daikin_ir/brand/icon@2x.png" width="128" alt="">
 </p>
 
 # Daikin IR
