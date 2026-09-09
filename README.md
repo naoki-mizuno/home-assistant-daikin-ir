@@ -15,6 +15,10 @@ such as humidity setpoints, timers, beep/light settings etc.
 Set up can be done from the UI. Add one entry per AC unit, since each one
 usually has its own blaster in its own room.
 
+<p align="center">
+  <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=naoki-mizuno&repository=home-assistant-daikin-ir&category=integration"><img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="Open your Home Assistant instance and open a repository inside the Home Assistant Community Store."></a>
+</p>
+
 ## Controls and Sensors
 
 - `climate` entity: power, mode, target temperature, target humidity, fan
