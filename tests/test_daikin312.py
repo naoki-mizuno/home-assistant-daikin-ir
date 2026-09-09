@@ -112,7 +112,9 @@ def test_checksums_validate():
 
 def test_short_frame_bytes():
     # Hand-checksummed against the module docstring's byte layout.
-    assert d._short_frame(d.CMD_MOLD_PROOF).hex(" ").upper() == "11 DA 27 00 84 0C 00 A2"
+    assert (
+        d._short_frame(d.CMD_MOLD_PROOF).hex(" ").upper() == "11 DA 27 00 84 0C 00 A2"
+    )
     assert (
         d._short_frame(d.CMD_FILTER_CLEAN).hex(" ").upper() == "11 DA 27 00 84 14 00 AA"
     )
@@ -152,9 +154,9 @@ def test_captures_have_valid_checksums():
         ("filter_clean off", "FilterClean", 0),
         ("auto mold proof on, running (0x18)", "AutoMoldProof", 1),
         ("auto mold proof off, running (0x18)", "AutoMoldProof", 0),
-        ("sensor_airflow area", "SensorAirflow", d.SENSOR_AIRFLOW["area"]),
-        ("sensor_airflow spot", "SensorAirflow", d.SENSOR_AIRFLOW["spot"]),
-        ("sensor_airflow cancel", "SensorAirflow", 0),
+        ("intelligent_eye comfort", "IntelligEye", d.INTELLIGENT_EYE["comfort"]),
+        ("intelligent_eye focus", "IntelligEye", d.INTELLIGENT_EYE["focus"]),
+        ("intelligent_eye cancel", "IntelligEye", 0),
         ("sleep on", "Sleep", 1),
         ("sleep off", "Sleep", 0),
         # Bits IRremoteESP8266's `union Daikin312Protocol` header (ir_Daikin.h)
@@ -176,17 +178,17 @@ def test_capture_bit_map(label, field, expected):
     assert getattr(_capture(label), field) == expected
 
 
-@pytest.mark.parametrize("mode", ["area", "spot"])
-def test_sensor_airflow_reproduces_the_remote(mode):
-    """Area/spot ride with both swing directions on auto and set raw[36] bits 0-2."""
-    capture = _capture(f"sensor_airflow {mode}")
-    mine = PROTOCOL.pack(dataclasses.replace(BASE, sensor_airflow=mode))
-    assert (mine.SwingV, mine.SwingH, mine.SensorAirflow) == (
+@pytest.mark.parametrize("mode", ["comfort", "focus"])
+def test_intelligent_eye_reproduces_the_remote(mode):
+    """Comfort/focus ride with both swing direction on auto and set raw[36] bits 0-2."""
+    capture = _capture(f"intelligent_eye {mode}")
+    mine = PROTOCOL.pack(dataclasses.replace(BASE, intelligent_eye=mode))
+    assert (mine.SwingV, mine.SwingH, mine.IntelligEye) == (
         capture.SwingV,
         capture.SwingH,
-        capture.SensorAirflow,
+        capture.IntelligEye,
     )
-    assert mine.SensorAirflow == d.SENSOR_AIRFLOW[mode]
+    assert mine.IntelligEye == d.INTELLIGENT_EYE[mode]
 
 
 def test_comfort_offset_round_trip():
@@ -361,8 +363,8 @@ def test_powerful_and_quiet_are_exclusive():
         ({"swing_v": "position_6"}, d.A_SWING_V),
         ({"swing_v": "circulate"}, d.A_CIRCULATION),
         ({"swing_v": "auto", "swing_h": "auto"}, d.A_SWING_V),
-        ({"sensor_airflow": "area"}, d.A_SWING_SENSOR),
-        ({"sensor_airflow": "spot"}, d.A_SWING_SENSOR),
+        ({"intelligent_eye": "comfort"}, d.A_SWING_SENSOR),
+        ({"intelligent_eye": "focus"}, d.A_SWING_SENSOR),
         ({"swing_h": "left"}, d.A_SWING_H),
         ({"powerful": True}, d.A_POWERFUL),
         ({"streamer": True}, d.A_FAN_ONLY),
@@ -384,8 +386,8 @@ def test_announce_follows_the_change(changes, expected):
 
 
 def test_swing_h_alone_does_not_borrow_the_sensor_announce():
-    """Setting a flap or louvre axis to auto is a plain swing change — the sensor airflow
-    feature has its own select. swing_h to auto while swing_v already sits on
+    """Setting a flap or louvre axis to auto is a plain swing change — the intelligent
+    eye feature has its own select. swing_h to auto while swing_v already sits on
     auto still announces as a horizontal-swing change (capture: "swing_h auto
     (swing_v not auto)")."""
     already_auto = dataclasses.replace(BASE, swing_v="auto")
@@ -428,24 +430,24 @@ def test_the_unit_picks_the_phrase_from_its_own_state_not_the_frame():
     assert entering.CurrentTime != streamer_off.CurrentTime
 
 
-def test_sensor_airflow_forces_flaps_and_louvres_to_auto():
+def test_intelligent_eye_forces_flaps_and_louvres_to_auto():
     state = PROTOCOL.apply(
         dataclasses.replace(BASE, swing_v="position_3", swing_h="left"),
-        {"sensor_airflow": "area"},
+        {"intelligent_eye": "comfort"},
     )
     assert (state.swing_v, state.swing_h) == ("auto", "auto")
     assert state.announce_item == d.A_SWING_SENSOR
-    assert PROTOCOL.pack(state).SensorAirflow == d.SENSOR_AIRFLOW["area"]
+    assert PROTOCOL.pack(state).IntelligEye == d.INTELLIGENT_EYE["comfort"]
 
 
-def test_manual_flap_or_louvre_pick_cancels_sensor_airflow():
+def test_manual_flap_or_louvre_pick_cancels_intelligent_eye():
     on = dataclasses.replace(
-        BASE, sensor_airflow="spot", swing_v="auto", swing_h="auto"
+        BASE, intelligent_eye="focus", swing_v="auto", swing_h="auto"
     )
     state = PROTOCOL.apply(on, {"swing_v": "position_2"})
-    assert state.sensor_airflow == "off"
+    assert state.intelligent_eye == "off"
     assert state.announce_item == d.A_SWING_V
-    assert PROTOCOL.pack(state).SensorAirflow == 0
+    assert PROTOCOL.pack(state).IntelligEye == 0
 
 
 @pytest.mark.parametrize(

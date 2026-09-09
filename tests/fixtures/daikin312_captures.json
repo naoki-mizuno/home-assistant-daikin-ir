@@ -920,7 +920,7 @@
     ]
   },
   {
-    "label": "sensor_airflow area",
+    "label": "intelligent_eye comfort",
     "source_label": "sensor_wind_dir",
     "announce_item": 21,
     "raw": [
@@ -966,7 +966,7 @@
     ]
   },
   {
-    "label": "sensor_airflow spot",
+    "label": "intelligent_eye focus",
     "source_label": "sensor_wind_dir",
     "announce_item": 21,
     "raw": [
@@ -1012,7 +1012,7 @@
     ]
   },
   {
-    "label": "sensor_airflow cancel",
+    "label": "intelligent_eye cancel",
     "source_label": "sensor_wind_dir",
     "announce_item": 21,
     "raw": [

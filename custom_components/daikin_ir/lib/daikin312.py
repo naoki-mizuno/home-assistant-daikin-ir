@@ -11,10 +11,11 @@ capture wins and the field carries a note. Confirmed by capture:
 * raw[14] bit6: auto mold proof toggle, absent from the header. The header's
   `Mold` (raw[8] bit3) never moves in any real capture, on/off pair included —
   wrong bit for this remote.
-* raw[36] bits 0-2: sensor airflow mode — 0 off / 0b011 area / 0b100 spot
+* raw[36] bits 0-2: intelligent eye mode — 0 off / 0b011 comfort / 0b100 focus
+  (comfort steers airflow away from people, focus steers it at them).
   The header calls bit2 `Econo`; captures of the "sensor auto" button
-  (bits 0-1 set) vs "spot" (bit2 set) show this is a 3-state select,
-  not one flag. Both area/spot also force SwingV=auto + SwingH=auto.
+  (bits 0-1 set) vs "focus" (bit2 set) show this is a 3-state select,
+  not one flag. Both comfort/focus also force SwingV=auto + SwingH=auto.
   The header's `Econo`/`Eye`/`EyeAuto` bits (36:2/1/3) sit right where this
   select lives, which reads like the header is wrong about bit2 for this
   remote, not that a real Econo flag hides nearby. Since ECONO and QUIET are
@@ -49,12 +50,13 @@ that. It holds bytes 10, 11, 15, 17, 35 and 37, plus raw[14] bit1, raw[34] bit1
 and raw[36] bit7, at values `stateReset()` disagrees with in all 30 captures, and
 never sets raw[6] bit5, which `stateReset()` does. A frame that gets those wrong
 is still accepted for temperature, mode, fan and the rest, but raw[36] is dropped
-whole: sending our own area and spot frames made the unit re-announce the sensor
-mode it was already in ("cancelled" after a cancel, "area" after an area press),
-while replaying a capture byte for byte announced area and spot correctly, and
-those two captures differ in nothing but raw[36] bits 0-2. Which of the wrong
-bytes was the gate was not bisected further; `_RESET` now matches the remote on
-all of them, since a value the remote never sends is not one to defend.
+whole: sending our own comfort and focus frames made the unit re-announce the
+mode it was already in ("cancelled" after a cancel, "comfort" after a comfort
+press), while replaying a capture byte for byte announced comfort and focus
+correctly, and those two captures differ in nothing but raw[36] bits 0-2. Which
+of the wrong bytes was the gate was not bisected further; `_RESET` now matches
+the remote on all of them, since a value the remote never sends is not one to
+defend.
 
 Still unidentified, and left as they are: raw[6] bit6, which the remote does
 vary but in patterns the captures do not explain, and raw[34] bit5, which is
@@ -182,9 +184,10 @@ SWING_H: dict[str, int] = {
     "right": 0x0D,
     "right_max": 0x0E,
 }
-# Sensor airflow: off / area / spot, in raw[36] bits 0-2. Area is bits 0+1, spot
-# is bit 2 (the header's `Econo`). Both drive the flaps and louvres to auto.
-SENSOR_AIRFLOW: dict[str, int] = {"off": 0x0, "area": 0x3, "spot": 0x4}
+# Intelligent eye: off / comfort / focus, in raw[36] bits 0-2. Comfort (blows
+# away from people) is bits 0+1, focus (blows at them) is bit 2 (the header's
+# `Econo`). Both drive the flaps and louvres to auto.
+INTELLIGENT_EYE: dict[str, int] = {"off": 0x0, "comfort": 0x3, "focus": 0x4}
 BEEPS: dict[str, int] = {"normal": 0, "quiet": 1, "loud": 2, "off": 3}
 LIGHTS: dict[str, int] = {"bright": 1, "dim": 2, "off": 3}
 EYE: dict[str, int] = {"off": 0, "1h": 1, "3h": 2}
@@ -275,7 +278,7 @@ _ANNOUNCE_PRIORITY: tuple[tuple[str, int], ...] = (
     ("humidity", A_HUMIDITY),
     ("humidity_mode", A_HUMIDITY),
     ("fan", A_FAN),
-    ("sensor_airflow", A_SWING_SENSOR),  # sensor airflow; ahead of the flap/louvre axes
+    ("intelligent_eye", A_SWING_SENSOR),  # before swing v/h direction
     ("swing_v", -2),  # circulate/breeze announce differently
     ("swing_h", -2),
     ("powerful", A_POWERFUL),
@@ -321,7 +324,7 @@ _RESET = bytes(
         0x00, 0x06, 0x60,              # 30-32 on/off timer times (disabled)
         0x00,                          # 33    powerful/quiet
         0x02, 0xC4,                    # 34-35 34:1 + 35 constant, 34:3 announce
-        0x80,                          # 36    bit7; sensor airflow / purify below
+        0x80,                          # 36    bit7; intelligent eye / purify below
         0x24,                          # 37    constant in every capture
         0x00,                          # 38    checksum #2
     ]
@@ -362,7 +365,7 @@ class Daikin312Raw(RawState):
     Sleep         = Field(33, 2)      # comfort sleep; not in header
     Quiet         = Field(33, 5)      # unverified; makes outdoor unit quiet; intl-only
     Announce      = Field(34, 3)      # enable bit, gates AnnounceItem
-    SensorAirflow = Field(36, 0, 3)  # sensor airflow: off/area/spot; hdr bit2=Econo
+    IntelligEye   = Field(36, 0, 3)  # off/comfort/focus; header bit2=Econo
     Purify        = Field(36, 4)      # unverified
     ComfortSleep  = Field(36, 5)      # on_timer_mode == comfort_sleep; unverified intl
                                       # feature, never observed on this JP-market unit
@@ -433,7 +436,7 @@ class Daikin312State:
     fan: str = "auto"
     swing_v: str = "auto"
     swing_h: str = "auto"
-    sensor_airflow: str = "off"  # sensor airflow: off | area | spot
+    intelligent_eye: str = "off"  # intelligent eye: off | comfort | focus
     humidity_mode: str = "off"  # off | continuous | specified %
     humidity: int = 50
     heat_high: bool = False  # high-temperature airflow
@@ -510,9 +513,9 @@ class Daikin312Protocol(Protocol):
             icon="mdi:fire",
         ),
         Control(
-            "sensor_airflow",
+            "intelligent_eye",
             SELECT,
-            options=tuple(SENSOR_AIRFLOW),
+            options=tuple(INTELLIGENT_EYE),
             icon="mdi:motion-sensor",
         ),
         Control(
@@ -695,18 +698,19 @@ class Daikin312Protocol(Protocol):
         if powerful and quiet:
             quiet = "quiet" not in changed
 
-        # Sensor airflow (area/spot) drives the flaps and louvres to auto;
+        # Intelligent eye (comfort/focus) drives the flaps and louvres to auto;
         # conversely, picking a flap or louvre position directly cancels it — the
         # way the remote's buttons interact. The flap/louvre→off half is inferred
         # from that behaviour, not from a capture of a flap or louvre button
-        # pressed while area/spot is on.
-        sensor_airflow, swing_v, swing_h = (
-            new.sensor_airflow, new.swing_v, new.swing_h
+        # pressed while comfort/focus is on.
+        intelligent_eye, swing_v, swing_h = (
+            new.intelligent_eye, new.swing_v, new.swing_h
         )
-        if "sensor_airflow" in changed and sensor_airflow != "off":
-            swing_v = swing_h = "auto"
-        elif ("swing_v" in changed or "swing_h" in changed) and sensor_airflow != "off":
-            sensor_airflow = "off"
+        if intelligent_eye != "off":
+            if "intelligent_eye" in changed:
+                swing_v = swing_h = "auto"
+            elif "swing_v" in changed or "swing_h" in changed:
+                intelligent_eye = "off"
 
         new = dataclasses.replace(
             new,
@@ -716,7 +720,7 @@ class Daikin312Protocol(Protocol):
             humidity=humidity,
             powerful=powerful,
             quiet=quiet and not powerful,
-            sensor_airflow=sensor_airflow,
+            intelligent_eye=intelligent_eye,
             swing_v=swing_v,
             swing_h=swing_h,
         )
@@ -756,7 +760,7 @@ class Daikin312Protocol(Protocol):
                 return _MODE_ANNOUNCE.get(state.mode)
             if item == -2:  # swing
                 # Setting a flap or louvre axis to auto by itself is a plain swing
-                # change, never the sensor-airflow feature — that has its own
+                # change, never the intelligent-eye feature — that has its own
                 # select above, and apply() turns it off when a flap or louvre
                 # axis is picked directly.
                 value = state.swing_v if key == "swing_v" else state.swing_h
@@ -782,9 +786,9 @@ class Daikin312Protocol(Protocol):
         f.Fan = FANS[state.fan]
         f.SwingV = SWING_V[state.swing_v]
         f.SwingH = SWING_H[state.swing_h]
-        f.SensorAirflow = SENSOR_AIRFLOW[state.sensor_airflow]
-        if state.sensor_airflow != "off":
-            # Area/spot always ride with the flaps and louvres on auto (captures).
+        f.IntelligEye = INTELLIGENT_EYE[state.intelligent_eye]
+        if state.intelligent_eye != "off":
+            # Comfort/focus always ride with the flaps and louvres on auto (captures).
             f.SwingV = SWING_V["auto"]
             f.SwingH = SWING_H["auto"]
 

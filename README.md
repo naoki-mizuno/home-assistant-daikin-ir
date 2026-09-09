@@ -27,9 +27,9 @@ usually has its own blaster in that room.
 - `climate` entity: power, mode, target temperature, target humidity, fan
   speed, vertical and horizontal swing.
 - Separate entities for everything else the remote has: Powerful, Flash
-  Streamer air purifying, Auto filter clean, High-temperature airflow, Sensor
-  airflow (area/spot), Auto off, Auto mold proof, the on/off/sleep timers,
-  Display brightness, Sound volume and Voice response
+  Streamer air purifying, Auto filter clean, High-temperature airflow,
+  Intelligent eye (comfort/focus), Auto off, Auto mold proof, the on/off/sleep
+  timers, Display brightness, Sound volume and Voice response
   ([Japanese terms](#japanese-terms)).
 - Optional temperature, humidity and power sensors.
 
@@ -149,7 +149,7 @@ Following is the translation table:
 | Flash Streamer air purifying        | ストリーマ空気清浄                       |
 | Auto filter clean                   | フィルター自動掃除                       |
 | Filter clean                        | フィルター掃除                           |
-| Sensor airflow — Area / Spot        | センサー風向 — エリア送風 / スポット送風 |
+| Intelligent eye — Comfort / Focus   | センサー風向 — エリア送風 / スポット送風 |
 | Auto off                            | 留守エコ                                 |
 | Auto mold proof                     | 自動内部クリーン                         |
 | Mold proof                          | 内部クリーン                             |
