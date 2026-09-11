@@ -744,11 +744,13 @@ class Daikin312Protocol(Protocol):
             return A_ANNOUNCE
         if not state.announce_enabled:
             return None
-        if {"power", "mode"} <= changed and state.power:
-            # Switching on straight into a mode is one button on the remote and
-            # is announced as the mode, not as power (capture: "dry from off").
-            # Switching off still announces as power, whatever else rides along.
-            changed = changed - {"power"}
+        if "power" in changed and state.power:
+            # There seems to be no "power on" button on the remote, and
+            # switching from off to on announces the mode it lands in.
+            # climate.turn_on will just resume the last one, so force the
+            # mode into the diff. Switching off still announces as power
+            # regardless of the mode.
+            changed = (changed - {"power"}) | {"mode"}
         for key, item in _ANNOUNCE_PRIORITY:
             if key not in changed:
                 continue

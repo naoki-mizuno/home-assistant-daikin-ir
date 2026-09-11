@@ -340,8 +340,10 @@ def test_switching_on_into_a_mode_announces_the_mode():
 
     off_again = PROTOCOL.apply(BASE, {"power": False, "mode": "dry"})
     assert off_again.announce_item == d.A_POWER
-    # A bare turn-on names no mode, so it stays a power announcement.
-    assert PROTOCOL.apply(parked, {"power": True}).announce_item == d.A_POWER
+    # There seems to be no announcement for a bare turn-on (climate.turn_on)
+    # (there is no "power on" button on the remote), so we explicitly have 
+    # the name of the mode announced.
+    assert PROTOCOL.apply(parked, {"power": True}).announce_item == d.A_DRY
 
 
 def test_powerful_and_quiet_are_exclusive():
